@@ -1,7 +1,7 @@
 /*
  * =========================================================
  * VEICLOUD WEB
- * Fondo dinámico con películas y series desde TMDB
+ * Carousel de una sola portada horizontal desde TMDB
  * =========================================================
  */
 
@@ -11,45 +11,57 @@ const TMDB_BACKDROPS_ENDPOINT =
 const BACKDROPS_REFRESH_INTERVAL_MS =
     5 * 60 * 1000;
 
-const MOSAIC_ROTATION_INTERVAL_MS =
-    20 * 1000;
+const CAROUSEL_ROTATION_INTERVAL_MS =
+    8000;
 
 let currentBackdrops = [];
+let currentIndex = 0;
 
-let rotationTimer =
-    null;
+let rotationTimer = null;
+let refreshTimer = null;
 
-let refreshTimer =
-    null;
+let heroElement = null;
+let slideA = null;
+let slideB = null;
+let isSlideAActive = true;
 
 /*
- * Inicia el fondo dinámico cuando la página termina de cargar.
+ * Arranque principal
  */
 document.addEventListener(
     "DOMContentLoaded",
-    () => {
-        initializeTmdbMosaic();
+    async () => {
+        heroElement =
+            document.querySelector(".hero");
+
+        if (!heroElement) {
+            console.error(
+                "No se encontró la sección .hero"
+            );
+            return;
+        }
+
+        injectCarouselStyles();
+        createCarouselLayers();
+
+        await refreshTmdbBackdrops();
+
+        refreshTimer =
+            window.setInterval(
+                refreshTmdbBackdrops,
+                BACKDROPS_REFRESH_INTERVAL_MS
+            );
+
+        rotationTimer =
+            window.setInterval(
+                goToNextBackdrop,
+                CAROUSEL_ROTATION_INTERVAL_MS
+            );
     }
 );
 
-async function initializeTmdbMosaic() {
-    await refreshTmdbBackdrops();
-
-    refreshTimer =
-        window.setInterval(
-            refreshTmdbBackdrops,
-            BACKDROPS_REFRESH_INTERVAL_MS
-        );
-
-    rotationTimer =
-        window.setInterval(
-            rotateMosaic,
-            MOSAIC_ROTATION_INTERVAL_MS
-        );
-}
-
 /*
- * Obtiene las portadas horizontales desde nuestro servidor.
+ * Carga nuevas portadas desde el servidor
  */
 async function refreshTmdbBackdrops() {
     try {
@@ -57,15 +69,10 @@ async function refreshTmdbBackdrops() {
             await fetch(
                 TMDB_BACKDROPS_ENDPOINT,
                 {
-                    method:
-                        "GET",
-
-                    cache:
-                        "no-store",
-
+                    method: "GET",
+                    cache: "no-store",
                     headers: {
-                        Accept:
-                            "application/json"
+                        Accept: "application/json"
                     }
                 }
             );
@@ -93,31 +100,32 @@ async function refreshTmdbBackdrops() {
         }
 
         currentBackdrops =
-            fillMosaicSlots(
-                validatedBackdrops
-            );
+            validatedBackdrops;
+
+        currentIndex = 0;
 
         await preloadImages(
             currentBackdrops
         );
 
-        renderTmdbMosaic(
-            currentBackdrops
+        showBackdropAtIndex(
+            currentIndex,
+            true
         );
 
         console.log(
-            "Mosaico de TMDB cargado correctamente."
+            "Carousel de TMDB cargado correctamente."
         );
     } catch (error) {
         console.error(
-            "No fue posible cargar el mosaico de TMDB:",
+            "No fue posible cargar las portadas de TMDB:",
             error
         );
     }
 }
 
 /*
- * Conserva únicamente enlaces válidos del CDN oficial de TMDB.
+ * Conserva solamente URLs válidas del CDN oficial de TMDB
  */
 function normalizeBackdrops(rawImages) {
     if (!Array.isArray(rawImages)) {
@@ -128,338 +136,352 @@ function normalizeBackdrops(rawImages) {
         new Set();
 
     return rawImages
-        .map(
-            (item) => {
+        .map((item) => {
+            if (
+                typeof item?.backdropUrl !==
+                "string"
+            ) {
+                return null;
+            }
+
+            try {
+                const imageUrl =
+                    new URL(
+                        item.backdropUrl
+                    );
+
                 if (
-                    typeof item?.backdropUrl !==
-                    "string"
+                    imageUrl.protocol !==
+                        "https:" ||
+                    imageUrl.hostname !==
+                        "image.tmdb.org"
                 ) {
                     return null;
                 }
 
-                try {
-                    const imageUrl =
-                        new URL(
-                            item.backdropUrl
-                        );
-
-                    if (
-                        imageUrl.protocol !==
-                            "https:" ||
-                        imageUrl.hostname !==
-                            "image.tmdb.org"
-                    ) {
-                        return null;
-                    }
-
-                    if (
-                        usedUrls.has(
-                            imageUrl.href
-                        )
-                    ) {
-                        return null;
-                    }
-
-                    usedUrls.add(
+                if (
+                    usedUrls.has(
                         imageUrl.href
-                    );
-
-                    return {
-                        id:
-                            item.id ?? "",
-
-                        type:
-                            item.type ?? "unknown",
-
-                        title:
-                            item.title ??
-                            "Contenido de VeiCloud",
-
-                        backdropUrl:
-                            imageUrl.href
-                    };
-                } catch {
+                    )
+                ) {
                     return null;
                 }
+
+                usedUrls.add(
+                    imageUrl.href
+                );
+
+                return {
+                    id:
+                        item.id ?? "",
+
+                    type:
+                        item.type ??
+                        "unknown",
+
+                    title:
+                        item.title ??
+                        "Contenido de VeiCloud",
+
+                    backdropUrl:
+                        imageUrl.href
+                };
+            } catch {
+                return null;
             }
-        )
+        })
         .filter(Boolean);
 }
 
 /*
- * El mosaico necesita exactamente ocho imágenes.
- * Si llegan menos, reutiliza algunas sin romper el diseño.
- */
-function fillMosaicSlots(backdrops) {
-    const result =
-        [...backdrops];
-
-    let index =
-        0;
-
-    while (
-        result.length < 8 &&
-        backdrops.length > 0
-    ) {
-        result.push(
-            backdrops[
-                index %
-                backdrops.length
-            ]
-        );
-
-        index +=
-            1;
-    }
-
-    return result.slice(
-        0,
-        8
-    );
-}
-
-/*
- * Precarga las imágenes para evitar cuadros vacíos
- * durante la primera aparición.
+ * Precarga las imágenes
  */
 async function preloadImages(backdrops) {
     const tasks =
-        backdrops.map(
-            (item) => {
-                return new Promise(
-                    (resolve) => {
-                        const image =
-                            new Image();
+        backdrops.map((item) => {
+            return new Promise(
+                (resolve) => {
+                    const image =
+                        new Image();
 
-                        image.onload =
-                            resolve;
+                    image.onload =
+                        resolve;
 
-                        image.onerror =
-                            resolve;
+                    image.onerror =
+                        resolve;
 
-                        image.src =
-                            item.backdropUrl;
-                    }
-                );
-            }
-        );
+                    image.src =
+                        item.backdropUrl;
+                }
+            );
+        });
 
-    await Promise.all(
-        tasks
-    );
+    await Promise.all(tasks);
 }
 
 /*
- * Cambia el orden de las portadas periódicamente.
+ * Avanza al siguiente fondo
  */
-function rotateMosaic() {
+function goToNextBackdrop() {
     if (
         currentBackdrops.length <= 1
     ) {
         return;
     }
 
-    currentBackdrops = [
-        ...currentBackdrops.slice(
-            1
-        ),
-        currentBackdrops[0]
-    ];
+    currentIndex =
+        (currentIndex + 1) %
+        currentBackdrops.length;
 
-    renderTmdbMosaic(
-        currentBackdrops
+    showBackdropAtIndex(
+        currentIndex,
+        false
     );
 }
 
 /*
- * Genera el CSS dinámico del mosaico.
- *
- * Escritorio:
- * 4 columnas x 2 filas
- *
- * Móvil:
- * 2 columnas x 4 filas
+ * Muestra una portada específica
  */
-function renderTmdbMosaic(backdrops) {
-    const imageLayers =
-        backdrops
-            .map(
-                (item) =>
-                    `url("${item.backdropUrl}")`
-            )
-            .join(",\n");
+function showBackdropAtIndex(
+    index,
+    immediate
+) {
+    if (
+        !currentBackdrops[index] ||
+        !slideA ||
+        !slideB
+    ) {
+        return;
+    }
 
+    const backdrop =
+        currentBackdrops[index];
+
+    const backgroundValue =
+        buildSlideBackground(
+            backdrop.backdropUrl
+        );
+
+    const activeSlide =
+        isSlideAActive
+            ? slideA
+            : slideB;
+
+    const hiddenSlide =
+        isSlideAActive
+            ? slideB
+            : slideA;
+
+    hiddenSlide.style.backgroundImage =
+        backgroundValue;
+
+    hiddenSlide.setAttribute(
+        "aria-label",
+        backdrop.title
+    );
+
+    if (immediate) {
+        activeSlide.classList.remove(
+            "active"
+        );
+
+        hiddenSlide.classList.add(
+            "active"
+        );
+
+        isSlideAActive =
+            hiddenSlide === slideA;
+
+        return;
+    }
+
+    hiddenSlide.classList.add(
+        "active"
+    );
+
+    activeSlide.classList.remove(
+        "active"
+    );
+
+    isSlideAActive =
+        hiddenSlide === slideA;
+}
+
+/*
+ * Fondo visual de cada slide
+ */
+function buildSlideBackground(
+    imageUrl
+) {
+    return `
+        linear-gradient(
+            90deg,
+            rgba(5, 5, 5, 0.98) 0%,
+            rgba(5, 5, 5, 0.95) 18%,
+            rgba(5, 5, 5, 0.84) 34%,
+            rgba(5, 5, 5, 0.46) 58%,
+            rgba(5, 5, 5, 0.20) 100%
+        ),
+        linear-gradient(
+            0deg,
+            rgba(5, 5, 5, 0.98) 0%,
+            rgba(5, 5, 5, 0.55) 16%,
+            rgba(5, 5, 5, 0.08) 46%,
+            rgba(5, 5, 5, 0.28) 100%
+        ),
+        url("${imageUrl}")
+    `;
+}
+
+/*
+ * Crea dos capas para hacer transición suave
+ */
+function createCarouselLayers() {
+    const carouselContainer =
+        document.createElement("div");
+
+    carouselContainer.className =
+        "tmdb-hero-carousel";
+
+    slideA =
+        document.createElement("div");
+    slideB =
+        document.createElement("div");
+
+    slideA.className =
+        "tmdb-hero-slide";
+    slideB.className =
+        "tmdb-hero-slide";
+
+    carouselContainer.appendChild(
+        slideA
+    );
+    carouselContainer.appendChild(
+        slideB
+    );
+
+    heroElement.insertBefore(
+        carouselContainer,
+        heroElement.firstChild
+    );
+}
+
+/*
+ * Inyecta estilos del carousel
+ */
+function injectCarouselStyles() {
     let styleElement =
         document.getElementById(
-            "tmdb-mosaic-style"
+            "tmdb-carousel-style"
         );
 
-    if (!styleElement) {
-        styleElement =
-            document.createElement(
-                "style"
-            );
-
-        styleElement.id =
-            "tmdb-mosaic-style";
-
-        document.head.appendChild(
-            styleElement
-        );
+    if (styleElement) {
+        styleElement.remove();
     }
+
+    styleElement =
+        document.createElement(
+            "style"
+        );
+
+    styleElement.id =
+        "tmdb-carousel-style";
 
     styleElement.textContent =
         `
-        /*
-         * Fondo dinámico generado desde TMDB.
-         */
-
         .hero {
+            position: relative !important;
+            overflow: hidden !important;
             isolation: isolate !important;
             background: #050505 !important;
         }
 
-        .hero::before {
+        .hero::before,
+        .hero::after {
+            content: none !important;
+            background: none !important;
+        }
+
+        .tmdb-hero-carousel {
             position: absolute;
+            inset: 0;
             z-index: 0;
+            pointer-events: none;
+        }
+
+        .tmdb-hero-slide {
+            position: absolute;
             inset: 0;
 
-            content: "";
+            opacity: 0;
+            transition: opacity 1000ms ease;
 
-            background-image:
-                linear-gradient(
-                    90deg,
-                    rgba(5, 5, 5, 1) 0%,
-                    rgba(5, 5, 5, 0.98) 17%,
-                    rgba(5, 5, 5, 0.88) 34%,
-                    rgba(5, 5, 5, 0.48) 58%,
-                    rgba(5, 5, 5, 0.24) 78%,
-                    rgba(5, 5, 5, 0.50) 100%
-                ),
-                linear-gradient(
-                    0deg,
-                    rgba(5, 5, 5, 1) 0%,
-                    rgba(5, 5, 5, 0.62) 14%,
-                    rgba(5, 5, 5, 0.06) 52%,
-                    rgba(5, 5, 5, 0.34) 100%
-                ),
-                ${imageLayers};
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-position: center center;
 
-            background-repeat:
-                no-repeat;
-
-            background-size:
-                100% 100%,
-                100% 100%,
-                25% 50%,
-                25% 50%,
-                25% 50%,
-                25% 50%,
-                25% 50%,
-                25% 50%,
-                25% 50%,
-                25% 50%;
-
-            background-position:
-                center,
-                center,
-                0% 0%,
-                33.333% 0%,
-                66.667% 0%,
-                100% 0%,
-                0% 100%,
-                33.333% 100%,
-                66.667% 100%,
-                100% 100%;
-
+            transform: scale(1.03);
             filter:
-                saturate(0.90)
-                contrast(1.06)
+                saturate(0.96)
+                contrast(1.04)
                 brightness(0.92);
+        }
 
-            transform:
-                scale(1.02);
+        .tmdb-hero-slide.active {
+            opacity: 1;
         }
 
         .hero-overlay {
+            position: absolute;
+            inset: 0;
             z-index: 1;
+            pointer-events: none;
+
+            background:
+                radial-gradient(
+                    circle at 72% 38%,
+                    rgba(229, 9, 20, 0.10),
+                    transparent 34rem
+                ),
+                linear-gradient(
+                    180deg,
+                    rgba(5, 5, 5, 0.04) 0%,
+                    rgba(5, 5, 5, 0.08) 55%,
+                    rgba(5, 5, 5, 0.72) 100%
+                ) !important;
         }
 
         .hero-content {
+            position: relative;
             z-index: 2;
         }
 
         @media (max-width: 900px) {
-
-            .hero::before {
-                background-size:
-                    100% 100%,
-                    100% 100%,
-                    50% 25%,
-                    50% 25%,
-                    50% 25%,
-                    50% 25%,
-                    50% 25%,
-                    50% 25%,
-                    50% 25%,
-                    50% 25%;
-
-                background-position:
-                    center,
-                    center,
-                    0% 0%,
-                    100% 0%,
-                    0% 33.333%,
-                    100% 33.333%,
-                    0% 66.667%,
-                    100% 66.667%,
-                    0% 100%,
-                    100% 100%;
+            .tmdb-hero-slide {
+                background-position: center center;
             }
         }
 
         @media (max-width: 600px) {
-
-            .hero::before {
+            .tmdb-hero-slide {
                 background-image:
                     linear-gradient(
                         0deg,
-                        rgba(5, 5, 5, 1) 0%,
-                        rgba(5, 5, 5, 0.98) 27%,
-                        rgba(5, 5, 5, 0.60) 57%,
-                        rgba(5, 5, 5, 0.24) 100%
+                        rgba(5, 5, 5, 0.98) 0%,
+                        rgba(5, 5, 5, 0.82) 28%,
+                        rgba(5, 5, 5, 0.22) 100%
                     ),
                     linear-gradient(
                         90deg,
-                        rgba(5, 5, 5, 0.20),
-                        rgba(5, 5, 5, 0.08)
-                    ),
-                    ${imageLayers};
-
-                background-size:
-                    100% 100%,
-                    100% 100%,
-                    62% 25%,
-                    62% 25%,
-                    62% 25%,
-                    62% 25%,
-                    62% 25%,
-                    62% 25%,
-                    62% 25%,
-                    62% 25%;
-
-                background-position:
-                    center,
-                    center,
-                    -18% 0%,
-                    118% 0%,
-                    -18% 33.333%,
-                    118% 33.333%,
-                    -18% 66.667%,
-                    118% 66.667%,
-                    -18% 100%,
-                    118% 100%;
+                        rgba(5, 5, 5, 0.78) 0%,
+                        rgba(5, 5, 5, 0.38) 45%,
+                        rgba(5, 5, 5, 0.10) 100%
+                    );
             }
         }
         `;
+
+    document.head.appendChild(
+        styleElement
+    );
 }
