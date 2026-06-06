@@ -64,9 +64,6 @@ app.use(
  * =========================================================
  * BLOQUEO DE ARCHIVOS INTERNOS
  * =========================================================
- *
- * server.js y package.json no deben descargarse
- * directamente desde el navegador.
  */
 
 app.use(
@@ -299,9 +296,23 @@ function getReadableFirebaseAuthError(
     );
 }
 
+function parseBoolean(
+    value
+) {
+    if (
+        value === true ||
+        value === "true" ||
+        value === 1 ||
+        value === "1"
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
 /*
- * Consulta Firebase Authentication para comprobar
- * que el ID token pertenece realmente a una cuenta válida.
+ * Comprueba que el token pertenece a una cuenta válida.
  */
 async function lookupFirebaseAccount(
     idToken
@@ -380,8 +391,7 @@ async function lookupFirebaseAccount(
 }
 
 /*
- * Renueva automáticamente la sesión cuando
- * el ID token anterior ya ha caducado.
+ * Renueva automáticamente el token cuando caduca.
  */
 async function refreshFirebaseSession(
     refreshToken
@@ -468,10 +478,8 @@ async function refreshFirebaseSession(
 }
 
 /*
- * Recupera la sesión del usuario.
- *
- * Primero intenta usar el ID token actual.
- * Si ya venció, utiliza el refresh token.
+ * Obtiene la sesión actual.
+ * Si el token venció, intenta renovarlo.
  */
 async function getAuthenticatedFirebaseSession(
     request,
@@ -575,14 +583,10 @@ async function getAuthenticatedFirebaseSession(
 
 /*
  * =========================================================
- * FIREBASE AUTHENTICATION
+ * INICIAR SESIÓN
  * =========================================================
  */
 
-/*
- * Inicia sesión con el mismo correo y contraseña
- * usados en la aplicación Android.
- */
 app.post(
     "/api/auth/login",
     async (
@@ -775,8 +779,11 @@ app.post(
 );
 
 /*
- * Cierra la sesión eliminando las cookies.
+ * =========================================================
+ * CERRAR SESIÓN
+ * =========================================================
  */
+
 app.post(
     "/api/auth/logout",
     (
@@ -807,13 +814,6 @@ app.post(
  * =========================================================
  */
 
-/*
- * Lee los perfiles desde:
- *
- * users
- *   └── UID
- *       └── profiles
- */
 app.get(
     "/api/profiles",
     async (
@@ -945,11 +945,11 @@ app.get(
 );
 
 /*
- * Convierte los perfiles guardados en Firebase
- * en un formato sencillo para profiles.js.
+ * Convierte los perfiles guardados en Firebase.
  *
- * Acepta varios nombres posibles para el avatar
- * para adaptarse a la estructura actual de Android.
+ * Importante:
+ * cualquier nodo sin nombre real será descartado.
+ * Así evitamos perfiles fantasmas llamados "Perfil".
  */
 function normalizeProfiles(
     rawProfiles
@@ -981,17 +981,6 @@ function normalizeProfiles(
             );
 
     return profileEntries
-        .filter(
-            (
-                [
-                    ,
-                    profile
-                ]
-            ) =>
-                profile &&
-                typeof profile ===
-                    "object"
-        )
         .map(
             (
                 [
@@ -999,16 +988,41 @@ function normalizeProfiles(
                     profile
                 ]
             ) => {
+                if (
+                    !profile ||
+                    typeof profile !==
+                        "object"
+                ) {
+                    return null;
+                }
+
+                const profileName =
+                    String(
+                        profile.name ||
+                        profile.profileName ||
+                        ""
+                    )
+                        .trim();
+
+                /*
+                 * No inventamos nombres.
+                 * Si el nodo no tiene un nombre real,
+                 * no debe aparecer en la interfaz.
+                 */
+                if (
+                    !profileName
+                ) {
+                    return null;
+                }
+
                 return {
                     id:
-                        profileId,
+                        String(
+                            profileId
+                        ),
 
                     name:
-                        String(
-                            profile.name ||
-                            profile.profileName ||
-                            "Perfil"
-                        ),
+                        profileName,
 
                     iconUrl:
                         String(
@@ -1017,16 +1031,20 @@ function normalizeProfiles(
                             profile.avatarUrl ||
                             profile.imageUrl ||
                             ""
-                        ),
+                        )
+                            .trim(),
 
                     isKids:
-                        Boolean(
-                            profile.isKids ||
-                            profile.kids ||
+                        parseBoolean(
+                            profile.isKids ??
+                            profile.kids ??
                             false
                         )
                 };
             }
+        )
+        .filter(
+            Boolean
         );
 }
 
