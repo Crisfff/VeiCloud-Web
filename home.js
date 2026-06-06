@@ -1,18 +1,19 @@
 /*
  * =========================================================
  * VEICLOUD WEB
- * HOME CON CATÁLOGO REAL DESDE FIREBASE
+ * HOME CON CATÁLOGO REAL + FICHA DE DETALLES INTERNA
  * =========================================================
  *
  * Este archivo:
  * - recupera el perfil elegido
- * - solicita el catálogo privado al servidor de Render
- * - muestra el contenido destacado
- * - dibuja las filas reales de películas y series
- * - crea el menú dinámico de categorías
- * - elimina las tarjetas de demostración
+ * - solicita el catálogo privado al servidor
+ * - muestra contenido destacado
+ * - dibuja películas y series reales
+ * - genera categorías
+ * - muestra detalles dentro del mismo Home
+ * - utiliza el botón atrás del navegador para cerrar la ficha
  *
- * Los enlaces de reproducción no se exponen todavía.
+ * No abre detail.html.
  */
 
 const SELECTED_PROFILE_STORAGE_KEY =
@@ -25,11 +26,21 @@ const CATALOG_ENDPOINT =
     "/api/catalog?limit=40";
 
 let currentCatalog = {
-    featured: null,
-    movies: [],
-    series: [],
-    categories: []
+    featured:
+        null,
+
+    movies:
+        [],
+
+    series:
+        [],
+
+    categories:
+        []
 };
+
+let activeDetailsItem =
+    null;
 
 /*
  * =========================================================
@@ -44,8 +55,8 @@ document.addEventListener(
             readSelectedProfile();
 
         /*
-         * Si el usuario entra directamente en home.html
-         * sin escoger perfil, regresamos a profiles.html.
+         * Si alguien entra directamente sin elegir perfil,
+         * regresamos a la pantalla correspondiente.
          */
         if (
             !selectedProfile ||
@@ -64,6 +75,8 @@ document.addEventListener(
 
         injectDynamicHomeStyles();
 
+        createDetailsOverlay();
+
         prepareHomeSections();
 
         bindTopbarButtons();
@@ -72,7 +85,11 @@ document.addEventListener(
 
         bindFeaturedButtons();
 
+        bindHistoryNavigation();
+
         await loadCatalog();
+
+        openDetailsFromCurrentHash();
     }
 );
 
@@ -159,7 +176,7 @@ function setSelectedProfileName(
 
 /*
  * =========================================================
- * PREPARAR SECCIONES DEL HOME
+ * PREPARAR FILAS DEL HOME
  * =========================================================
  */
 
@@ -222,12 +239,6 @@ function prepareHomeSections() {
     );
 }
 
-/*
- * Oculta la fila de demostración.
- *
- * Más adelante la conectaremos al progreso real
- * guardado por cada perfil.
- */
 function hideDemoContinueWatching() {
     const continueWatchingRow =
         document.getElementById(
@@ -438,10 +449,6 @@ async function loadCatalog() {
                 response
             );
 
-        /*
-         * Si la sesión ya no es válida,
-         * volvemos a iniciar sesión.
-         */
         if (
             response.status ===
             401
@@ -509,7 +516,7 @@ async function loadCatalog() {
         error
     ) {
         console.error(
-            "Error cargando el catálogo:",
+            "Error cargando catálogo:",
             error
         );
 
@@ -654,6 +661,21 @@ function normalizeContentItem(
         bannerUrl:
             normalizeImageUrl(
                 rawItem.bannerUrl
+            ),
+
+        seasonsCount:
+            normalizeNumber(
+                rawItem.seasonsCount
+            ),
+
+        episodesCount:
+            normalizeNumber(
+                rawItem.episodesCount
+            ),
+
+        hasEpisodes:
+            Boolean(
+                rawItem.hasEpisodes
             )
     };
 }
@@ -682,6 +704,22 @@ function normalizeCategories(
         .filter(
             Boolean
         );
+}
+
+function normalizeNumber(
+    value
+) {
+    const parsedValue =
+        Number.parseInt(
+            value,
+            10
+        );
+
+    return Number.isNaN(
+        parsedValue
+    )
+        ? 0
+        : parsedValue;
 }
 
 function normalizeImageUrl(
@@ -770,6 +808,7 @@ function renderFeaturedContent(
 
     featuredDescription.textContent =
         featured.description ||
+        featured.category ||
         "Descubre este contenido en VeiCloud.";
 
     const featuredImage =
@@ -801,39 +840,33 @@ function bindFeaturedButtons() {
             "featured-list-button"
         );
 
+    /*
+     * Mientras conectamos el reproductor,
+     * tocar Reproducir abre la ficha interna.
+     */
     playButton?.addEventListener(
         "click",
         () => {
-            const featured =
-                currentCatalog.featured;
-
             if (
-                !featured
+                currentCatalog.featured
             ) {
-                return;
+                openContentDetails(
+                    currentCatalog.featured
+                );
             }
-
-            openContentDetails(
-                featured
-            );
         }
     );
 
     listButton?.addEventListener(
         "click",
         () => {
-            const featured =
-                currentCatalog.featured;
-
             if (
-                !featured
+                currentCatalog.featured
             ) {
-                return;
+                toggleMyList(
+                    currentCatalog.featured
+                );
             }
-
-            toggleMyList(
-                featured
-            );
         }
     );
 }
@@ -1009,29 +1042,666 @@ function createPosterFallback(
 
 /*
  * =========================================================
- * PANTALLA DE DETALLES
+ * FICHA INTERNA DE DETALLES
  * =========================================================
- *
- * La crearemos en el próximo paso.
  */
 
-function openContentDetails(
-    item
-) {
-    const query =
-        new URLSearchParams(
-            {
-                id:
-                    item.id,
+function createDetailsOverlay() {
+    if (
+        document.getElementById(
+            "content-details-overlay"
+        )
+    ) {
+        return;
+    }
 
-                type:
-                    item.type ||
-                    ""
-            }
+    const overlay =
+        document.createElement(
+            "section"
         );
 
-    window.location.assign(
-        `/detail.html?${query.toString()}`
+    overlay.id =
+        "content-details-overlay";
+
+    overlay.className =
+        "details-overlay";
+
+    overlay.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+
+    const background =
+        document.createElement(
+            "div"
+        );
+
+    background.className =
+        "details-backdrop";
+
+    background.id =
+        "details-backdrop";
+
+    const gradient =
+        document.createElement(
+            "div"
+        );
+
+    gradient.className =
+        "details-gradient";
+
+    const topbar =
+        document.createElement(
+            "header"
+        );
+
+    topbar.className =
+        "details-topbar";
+
+    const closeButton =
+        document.createElement(
+            "button"
+        );
+
+    closeButton.className =
+        "details-close-button";
+
+    closeButton.id =
+        "details-close-button";
+
+    closeButton.type =
+        "button";
+
+    closeButton.setAttribute(
+        "aria-label",
+        "Volver al inicio"
+    );
+
+    closeButton.textContent =
+        "‹";
+
+    const brand =
+        document.createElement(
+            "span"
+        );
+
+    brand.className =
+        "details-brand";
+
+    brand.textContent =
+        "VeiCloud";
+
+    topbar.appendChild(
+        closeButton
+    );
+
+    topbar.appendChild(
+        brand
+    );
+
+    const content =
+        document.createElement(
+            "div"
+        );
+
+    content.className =
+        "details-content";
+
+    const type =
+        document.createElement(
+            "p"
+        );
+
+    type.className =
+        "details-type";
+
+    type.id =
+        "details-type";
+
+    const title =
+        document.createElement(
+            "h2"
+        );
+
+    title.className =
+        "details-title";
+
+    title.id =
+        "details-title";
+
+    const metadata =
+        document.createElement(
+            "p"
+        );
+
+    metadata.className =
+        "details-metadata";
+
+    metadata.id =
+        "details-metadata";
+
+    const description =
+        document.createElement(
+            "p"
+        );
+
+    description.className =
+        "details-description";
+
+    description.id =
+        "details-description";
+
+    const actions =
+        document.createElement(
+            "div"
+        );
+
+    actions.className =
+        "details-actions";
+
+    const playButton =
+        document.createElement(
+            "button"
+        );
+
+    playButton.className =
+        "details-primary-button";
+
+    playButton.id =
+        "details-play-button";
+
+    playButton.type =
+        "button";
+
+    playButton.textContent =
+        "▶ Reproducir";
+
+    const listButton =
+        document.createElement(
+            "button"
+        );
+
+    listButton.className =
+        "details-secondary-button";
+
+    listButton.id =
+        "details-list-button";
+
+    listButton.type =
+        "button";
+
+    listButton.textContent =
+        "+ Mi lista";
+
+    actions.appendChild(
+        playButton
+    );
+
+    actions.appendChild(
+        listButton
+    );
+
+    content.appendChild(
+        type
+    );
+
+    content.appendChild(
+        title
+    );
+
+    content.appendChild(
+        metadata
+    );
+
+    content.appendChild(
+        actions
+    );
+
+    content.appendChild(
+        description
+    );
+
+    overlay.appendChild(
+        background
+    );
+
+    overlay.appendChild(
+        gradient
+    );
+
+    overlay.appendChild(
+        topbar
+    );
+
+    overlay.appendChild(
+        content
+    );
+
+    document.body.appendChild(
+        overlay
+    );
+
+    closeButton.addEventListener(
+        "click",
+        requestCloseDetails
+    );
+
+    listButton.addEventListener(
+        "click",
+        () => {
+            if (
+                !activeDetailsItem
+            ) {
+                return;
+            }
+
+            toggleMyList(
+                activeDetailsItem
+            );
+
+            updateDetailsListButtonState(
+                activeDetailsItem
+            );
+        }
+    );
+
+    playButton.addEventListener(
+        "click",
+        () => {
+            if (
+                !activeDetailsItem
+            ) {
+                return;
+            }
+
+            if (
+                activeDetailsItem.type ===
+                "series"
+            ) {
+                window.alert(
+                    "El selector de temporadas y capítulos será el próximo módulo."
+                );
+
+                return;
+            }
+
+            window.alert(
+                "El reproductor web será el próximo módulo."
+            );
+        }
+    );
+}
+
+function openContentDetails(
+    item,
+    options =
+        {}
+) {
+    const overlay =
+        document.getElementById(
+            "content-details-overlay"
+        );
+
+    if (
+        !overlay ||
+        !item
+    ) {
+        return;
+    }
+
+    activeDetailsItem =
+        item;
+
+    const backdrop =
+        document.getElementById(
+            "details-backdrop"
+        );
+
+    const title =
+        document.getElementById(
+            "details-title"
+        );
+
+    const type =
+        document.getElementById(
+            "details-type"
+        );
+
+    const metadata =
+        document.getElementById(
+            "details-metadata"
+        );
+
+    const description =
+        document.getElementById(
+            "details-description"
+        );
+
+    if (
+        backdrop
+    ) {
+        const image =
+            item.bannerUrl ||
+            item.posterUrl ||
+            "";
+
+        backdrop.style.backgroundImage =
+            image
+                ? `url("${image}")`
+                : "none";
+    }
+
+    if (
+        title
+    ) {
+        title.textContent =
+            item.title;
+    }
+
+    if (
+        type
+    ) {
+        type.textContent =
+            item.type ===
+                "series"
+                ? "SERIE"
+                : "PELÍCULA";
+    }
+
+    if (
+        metadata
+    ) {
+        metadata.textContent =
+            buildDetailsMetadata(
+                item
+            );
+    }
+
+    if (
+        description
+    ) {
+        description.textContent =
+            item.description ||
+            "La información de este contenido estará disponible próximamente.";
+    }
+
+    updateDetailsListButtonState(
+        item
+    );
+
+    overlay.classList.add(
+        "visible"
+    );
+
+    overlay.setAttribute(
+        "aria-hidden",
+        "false"
+    );
+
+    document.body.classList.add(
+        "details-open"
+    );
+
+    if (
+        options.updateHistory !==
+        false
+    ) {
+        const detailsHash =
+            `#details=${encodeURIComponent(item.id)}`;
+
+        if (
+            window.location.hash !==
+            detailsHash
+        ) {
+            window.history.pushState(
+                {
+                    veicloudDetails:
+                        true
+                },
+                "",
+                detailsHash
+            );
+        }
+    }
+}
+
+function buildDetailsMetadata(
+    item
+) {
+    const parts =
+        [];
+
+    if (
+        item.year
+    ) {
+        parts.push(
+            item.year
+        );
+    }
+
+    if (
+        item.duration
+    ) {
+        parts.push(
+            item.duration
+        );
+    }
+
+    if (
+        item.type ===
+        "series"
+    ) {
+        if (
+            item.seasonsCount >
+            0
+        ) {
+            parts.push(
+                item.seasonsCount ===
+                    1
+                    ? "1 temporada"
+                    : `${item.seasonsCount} temporadas`
+            );
+        }
+
+        if (
+            item.episodesCount >
+            0
+        ) {
+            parts.push(
+                item.episodesCount ===
+                    1
+                    ? "1 capítulo"
+                    : `${item.episodesCount} capítulos`
+            );
+        }
+    }
+
+    if (
+        item.category
+    ) {
+        parts.push(
+            item.category
+        );
+    }
+
+    return parts.join(
+        " • "
+    );
+}
+
+function updateDetailsListButtonState(
+    item
+) {
+    const listButton =
+        document.getElementById(
+            "details-list-button"
+        );
+
+    if (
+        !listButton ||
+        !item
+    ) {
+        return;
+    }
+
+    const isSaved =
+        isItemSaved(
+            item.id
+        );
+
+    listButton.textContent =
+        isSaved
+            ? "✓ En mi lista"
+            : "+ Mi lista";
+}
+
+function requestCloseDetails() {
+    if (
+        window.history.state
+            ?.veicloudDetails
+    ) {
+        window.history.back();
+
+        return;
+    }
+
+    hideDetailsOverlay();
+
+    removeDetailsHash();
+}
+
+function hideDetailsOverlay() {
+    const overlay =
+        document.getElementById(
+            "content-details-overlay"
+        );
+
+    if (
+        !overlay
+    ) {
+        return;
+    }
+
+    overlay.classList.remove(
+        "visible"
+    );
+
+    overlay.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+
+    document.body.classList.remove(
+        "details-open"
+    );
+
+    activeDetailsItem =
+        null;
+}
+
+function removeDetailsHash() {
+    const cleanUrl =
+        window.location.pathname +
+        window.location.search;
+
+    window.history.replaceState(
+        null,
+        "",
+        cleanUrl
+    );
+}
+
+function bindHistoryNavigation() {
+    window.addEventListener(
+        "popstate",
+        () => {
+            if (
+                window.location.hash.startsWith(
+                    "#details="
+                )
+            ) {
+                openDetailsFromCurrentHash();
+
+                return;
+            }
+
+            hideDetailsOverlay();
+        }
+    );
+
+    window.addEventListener(
+        "keydown",
+        (
+            event
+        ) => {
+            if (
+                event.key ===
+                "Escape" &&
+                activeDetailsItem
+            ) {
+                requestCloseDetails();
+            }
+        }
+    );
+}
+
+function openDetailsFromCurrentHash() {
+    if (
+        !window.location.hash.startsWith(
+            "#details="
+        )
+    ) {
+        return;
+    }
+
+    const requestedId =
+        decodeURIComponent(
+            window.location.hash
+                .replace(
+                    "#details=",
+                    ""
+                )
+        );
+
+    const item =
+        findCatalogItemById(
+            requestedId
+        );
+
+    if (
+        item
+    ) {
+        openContentDetails(
+            item,
+            {
+                updateHistory:
+                    false
+            }
+        );
+    }
+}
+
+function findCatalogItemById(
+    requestedId
+) {
+    const allItems = [
+        currentCatalog.featured,
+        ...currentCatalog.movies,
+        ...currentCatalog.series
+    ]
+        .filter(
+            Boolean
+        );
+
+    return (
+        allItems.find(
+            (
+                item
+            ) =>
+                item.id ===
+                requestedId
+        ) ||
+        null
     );
 }
 
@@ -1078,9 +1748,7 @@ function bindCategoryNavigation() {
 
     categoriesButton?.addEventListener(
         "click",
-        () => {
-            toggleCategoriesMenu();
-        }
+        toggleCategoriesMenu
     );
 }
 
@@ -1178,22 +1846,20 @@ function renderCategoriesMenu(
 }
 
 function toggleCategoriesMenu() {
-    const menu =
-        document.getElementById(
+    document
+        .getElementById(
             "categories-menu"
+        )
+        ?.classList.toggle(
+            "visible"
         );
-
-    menu?.classList.toggle(
-        "visible"
-    );
 }
 
 function showCategorySection(
     category
 ) {
     const normalizedCategory =
-        category
-            .toLowerCase();
+        category.toLowerCase();
 
     const allContent = [
         ...currentCatalog.movies,
@@ -1228,13 +1894,11 @@ function showCategorySection(
         }
     );
 
-    const categorySection =
-        document.getElementById(
-            "selected-category-section"
-        );
-
     const categoryTitle =
-        categorySection
+        document
+            .getElementById(
+                "selected-category-section"
+            )
             ?.querySelector(
                 ".section-header h2"
             );
@@ -1279,9 +1943,6 @@ function scrollToSection(
  * =========================================================
  * MI LISTA LOCAL
  * =========================================================
- *
- * De momento se guarda en el navegador.
- * Más adelante podemos sincronizarla con Firebase.
  */
 
 function readMyList() {
@@ -1310,6 +1971,18 @@ function readMyList() {
     } catch {
         return [];
     }
+}
+
+function isItemSaved(
+    itemId
+) {
+    return readMyList().some(
+        (
+            savedItem
+        ) =>
+            savedItem.id ===
+            itemId
+    );
 }
 
 function toggleMyList(
@@ -1381,12 +2054,8 @@ function updateMyListButtonState(
     }
 
     const isSaved =
-        readMyList().some(
-            (
-                savedItem
-            ) =>
-                savedItem.id ===
-                item.id
+        isItemSaved(
+            item.id
         );
 
     const label =
@@ -1459,7 +2128,7 @@ function bindTopbarButtons() {
 
 /*
  * =========================================================
- * TARJETAS DE ESTADO
+ * ESTADOS
  * =========================================================
  */
 
@@ -1515,7 +2184,7 @@ function appendStatusCard(
 
 /*
  * =========================================================
- * ESTILOS COMPLEMENTARIOS GENERADOS POR JAVASCRIPT
+ * ESTILOS COMPLEMENTARIOS
  * =========================================================
  */
 
@@ -1617,16 +2286,6 @@ function injectDynamicHomeStyles() {
             font-family: inherit;
             font-size: 13px;
             font-weight: 800;
-            transition:
-                background 180ms ease,
-                border-color 180ms ease,
-                transform 180ms ease;
-        }
-
-        .category-chip:hover {
-            border-color: rgba(255, 255, 255, 0.22);
-            background: rgba(255, 255, 255, 0.12);
-            transform: translateY(-2px);
         }
 
         .categories-empty {
@@ -1636,22 +2295,184 @@ function injectDynamicHomeStyles() {
             font-weight: 700;
         }
 
-        @media (max-width: 600px) {
-            .categories-menu {
-                margin-top: 15px;
-                padding: 13px;
-                border-radius: 16px;
+        body.details-open {
+            overflow: hidden;
+        }
+
+        .details-overlay {
+            position: fixed;
+            z-index: 500;
+            inset: 0;
+            display: flex;
+            align-items: flex-end;
+            overflow: hidden;
+            background: #050505;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(18px);
+            transition:
+                opacity 260ms ease,
+                transform 260ms ease;
+        }
+
+        .details-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        .details-backdrop {
+            position: absolute;
+            inset: 0;
+            background-position: center top;
+            background-repeat: no-repeat;
+            background-size: cover;
+            filter:
+                saturate(0.96)
+                contrast(1.04);
+        }
+
+        .details-gradient {
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(5, 5, 5, 0.04) 0%,
+                    rgba(5, 5, 5, 0.20) 40%,
+                    rgba(5, 5, 5, 0.90) 73%,
+                    #050505 100%
+                );
+        }
+
+        .details-topbar {
+            position: absolute;
+            z-index: 3;
+            top: 0;
+            right: 0;
+            left: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding:
+                max(20px, env(safe-area-inset-top))
+                20px
+                0;
+        }
+
+        .details-close-button {
+            display: grid;
+            place-items: center;
+            width: 46px;
+            height: 46px;
+            padding: 0 0 5px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.34);
+            color: #ffffff;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 46px;
+            font-weight: 300;
+            line-height: 1;
+            backdrop-filter: blur(16px);
+        }
+
+        .details-brand {
+            color: #ed0711;
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: -1px;
+        }
+
+        .details-content {
+            position: relative;
+            z-index: 2;
+            width: min(100%, 720px);
+            margin: 0 auto;
+            padding:
+                32px
+                22px
+                max(36px, env(safe-area-inset-bottom));
+        }
+
+        .details-type {
+            margin: 0 0 10px;
+            color: #ff5b63;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 2.4px;
+        }
+
+        .details-title {
+            margin: 0;
+            color: #ffffff;
+            font-size: clamp(42px, 11vw, 66px);
+            font-weight: 900;
+            letter-spacing: -2.5px;
+            line-height: 0.98;
+        }
+
+        .details-metadata {
+            margin: 17px 0 0;
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 14px;
+            font-weight: 800;
+            line-height: 1.55;
+        }
+
+        .details-description {
+            margin: 22px 0 0;
+            color: rgba(255, 255, 255, 0.76);
+            font-size: 15px;
+            font-weight: 600;
+            line-height: 1.65;
+        }
+
+        .details-actions {
+            display: flex;
+            gap: 11px;
+            margin-top: 24px;
+        }
+
+        .details-primary-button,
+        .details-secondary-button {
+            flex: 1;
+            min-height: 56px;
+            padding: 0 15px;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 900;
+        }
+
+        .details-primary-button {
+            background: #ffffff;
+            color: #050505;
+        }
+
+        .details-secondary-button {
+            background: rgba(255, 255, 255, 0.30);
+            color: #ffffff;
+            backdrop-filter: blur(12px);
+        }
+
+        @media (min-width: 760px) {
+            .details-overlay {
+                align-items: center;
             }
 
-            .category-chip {
-                padding: 9px 11px;
-                font-size: 12px;
+            .details-content {
+                padding:
+                    110px
+                    34px
+                    46px;
             }
 
-            .catalog-status-card {
-                min-width: 210px;
-                min-height: 100px;
-                font-size: 13px;
+            .details-title {
+                font-size: 72px;
             }
         }
         `;
@@ -1663,7 +2484,7 @@ function injectDynamicHomeStyles() {
 
 /*
  * =========================================================
- * LEER JSON DE FORMA SEGURA
+ * JSON SEGURO
  * =========================================================
  */
 
