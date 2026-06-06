@@ -1,461 +1,322 @@
+const express = require("express");
+const path = require("path");
+
+const app = express();
+
+const PORT = process.env.PORT || 3000;
+
+const TMDB_TOKEN = process.env.TMDB_TOKEN;
+
+const TMDB_API_BASE_URL =
+    "https://api.themoviedb.org/3";
+
+const TMDB_IMAGE_BASE_URL =
+    "https://image.tmdb.org/t/p/w1280";
+
+const CACHE_DURATION_MS =
+    15 * 60 * 1000;
+
+let backdropCache = {
+    expiresAt: 0,
+    items: []
+};
+
 /*
- * =========================================================
- * VEICLOUD WEB
- * Fondo dinámico con portadas horizontales de TMDB
- * =========================================================
+ * Mezcla las portadas para que el fondo no muestre
+ * siempre exactamente el mismo orden.
  */
+function shuffleItems(items) {
+    const shuffled =
+        [...items];
 
-const TMDB_BACKDROPS_ENDPOINT =
-    "/api/tmdb/backdrops?type=all&limit=8";
-
-const BACKDROP_REFRESH_INTERVAL_MS =
-    5 * 60 * 1000;
-
-const MOSAIC_ROTATION_INTERVAL_MS =
-    22 * 1000;
-
-let currentBackdrops = [];
-
-let mosaicRotationTimer = null;
-
-let backdropsRefreshTimer = null;
-
-/*
- * Espera a que el HTML esté completamente cargado.
- */
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-        loadTmdbBackdrops();
-
-        backdropsRefreshTimer =
-            window.setInterval(
-                loadTmdbBackdrops,
-                BACKDROP_REFRESH_INTERVAL_MS
+    for (
+        let index =
+            shuffled.length - 1;
+        index > 0;
+        index -= 1
+    ) {
+        const randomIndex =
+            Math.floor(
+                Math.random() *
+                (index + 1)
             );
+
+        [
+            shuffled[index],
+            shuffled[randomIndex]
+        ] = [
+            shuffled[randomIndex],
+            shuffled[index]
+        ];
+    }
+
+    return shuffled;
+}
+
+/*
+ * Controla cuántas imágenes puede solicitar el navegador.
+ */
+function normalizeLimit(rawLimit) {
+    const parsedLimit =
+        Number.parseInt(
+            rawLimit,
+            10
+        );
+
+    if (
+        Number.isNaN(
+            parsedLimit
+        )
+    ) {
+        return 8;
+    }
+
+    return Math.min(
+        Math.max(
+            parsedLimit,
+            4
+        ),
+        16
+    );
+}
+
+/*
+ * Obtiene tendencias semanales desde TMDB.
+ * Conserva únicamente películas y series
+ * que tengan portada horizontal.
+ */
+async function loadTrendingBackdrops() {
+    const now =
+        Date.now();
+
+    if (
+        backdropCache.items.length > 0 &&
+        backdropCache.expiresAt > now
+    ) {
+        return backdropCache.items;
+    }
+
+    if (!TMDB_TOKEN) {
+        throw new Error(
+            "Falta configurar la variable TMDB_TOKEN en Render."
+        );
+    }
+
+    const tmdbUrl =
+        `${TMDB_API_BASE_URL}` +
+        "/trending/all/week" +
+        "?language=es-ES";
+
+    const tmdbResponse =
+        await fetch(
+            tmdbUrl,
+            {
+                method: "GET",
+                headers: {
+                    accept:
+                        "application/json",
+
+                    Authorization:
+                        `Bearer ${TMDB_TOKEN}`
+                }
+            }
+        );
+
+    if (!tmdbResponse.ok) {
+        throw new Error(
+            `TMDB respondió con el código ${tmdbResponse.status}.`
+        );
+    }
+
+    const tmdbData =
+        await tmdbResponse.json();
+
+    const usedImages =
+        new Set();
+
+    const normalizedItems =
+        tmdbData.results
+            .filter(
+                (item) =>
+                    (
+                        item.media_type ===
+                            "movie" ||
+                        item.media_type ===
+                            "tv"
+                    ) &&
+                    Boolean(
+                        item.backdrop_path
+                    )
+            )
+            .map(
+                (item) => {
+                    return {
+                        id:
+                            item.id,
+
+                        type:
+                            item.media_type,
+
+                        title:
+                            item.title ||
+                            item.name ||
+                            "Sin título",
+
+                        backdropUrl:
+                            `${TMDB_IMAGE_BASE_URL}${item.backdrop_path}`
+                    };
+                }
+            )
+            .filter(
+                (item) => {
+                    if (
+                        usedImages.has(
+                            item.backdropUrl
+                        )
+                    ) {
+                        return false;
+                    }
+
+                    usedImages.add(
+                        item.backdropUrl
+                    );
+
+                    return true;
+                }
+            );
+
+    backdropCache = {
+        expiresAt:
+            now +
+            CACHE_DURATION_MS,
+
+        items:
+            normalizedItems
+    };
+
+    return normalizedItems;
+}
+
+/*
+ * Endpoint utilizado por script.js para solicitar
+ * portadas dinámicas.
+ *
+ * Ejemplos:
+ * /api/tmdb/backdrops
+ * /api/tmdb/backdrops?type=movie&limit=8
+ * /api/tmdb/backdrops?type=tv&limit=8
+ */
+app.get(
+    "/api/tmdb/backdrops",
+    async (
+        request,
+        response
+    ) => {
+        try {
+            const requestedType =
+                request.query.type ===
+                    "movie" ||
+                request.query.type ===
+                    "tv"
+                    ? request.query.type
+                    : "all";
+
+            const limit =
+                normalizeLimit(
+                    request.query.limit
+                );
+
+            const allItems =
+                await loadTrendingBackdrops();
+
+            const filteredItems =
+                requestedType ===
+                    "all"
+                    ? allItems
+                    : allItems.filter(
+                        (item) =>
+                            item.type ===
+                            requestedType
+                    );
+
+            const selectedItems =
+                shuffleItems(
+                    filteredItems
+                ).slice(
+                    0,
+                    limit
+                );
+
+            response.set(
+                "Cache-Control",
+                "public, max-age=300"
+            );
+
+            response.json(
+                {
+                    count:
+                        selectedItems.length,
+
+                    type:
+                        requestedType,
+
+                    images:
+                        selectedItems
+                }
+            );
+        } catch (error) {
+            console.error(
+                "Error cargando portadas desde TMDB:",
+                error.message
+            );
+
+            response.status(
+                500
+            ).json(
+                {
+                    error:
+                        "No se pudieron cargar las portadas desde TMDB."
+                }
+            );
+        }
     }
 );
 
 /*
- * Solicita películas y series al pequeño servidor
- * que creamos en Render.
+ * Publica index.html, styles.css y script.js.
  */
-async function loadTmdbBackdrops() {
-    try {
-        const response =
-            await fetch(
-                TMDB_BACKDROPS_ENDPOINT,
-                {
-                    method:
-                        "GET",
-
-                    headers: {
-                        Accept:
-                            "application/json"
-                    }
-                }
-            );
-
-        if (!response.ok) {
-            throw new Error(
-                `Error HTTP ${response.status}`
-            );
-        }
-
-        const data =
-            await response.json();
-
-        const validatedImages =
-            normalizeBackdrops(
-                data.images
-            );
-
-        if (
-            validatedImages.length === 0
-        ) {
-            throw new Error(
-                "TMDB no devolvió imágenes válidas."
-            );
-        }
-
-        currentBackdrops =
-            ensureEightBackdrops(
-                validatedImages
-            );
-
-        await preloadBackdrops(
-            currentBackdrops
-        );
-
-        renderBackdropMosaic(
-            currentBackdrops
-        );
-
-        restartMosaicRotation();
-
-        console.log(
-            "Portadas de TMDB cargadas correctamente."
-        );
-    } catch (error) {
-        console.error(
-            "No fue posible cargar las portadas de TMDB:",
-            error
-        );
-
-        /*
-         * Si ocurre un error, no borramos el fondo anterior.
-         * La portada continúa funcionando sin quedar vacía.
-         */
-    }
-}
-
-/*
- * Conserva solamente enlaces seguros del CDN oficial
- * de imágenes de TMDB.
- */
-function normalizeBackdrops(rawImages) {
-    if (!Array.isArray(rawImages)) {
-        return [];
-    }
-
-    const usedUrls =
-        new Set();
-
-    return rawImages
-        .map(
-            (item) => {
-                if (
-                    typeof item?.backdropUrl !==
-                    "string"
-                ) {
-                    return null;
-                }
-
-                try {
-                    const parsedUrl =
-                        new URL(
-                            item.backdropUrl
-                        );
-
-                    if (
-                        parsedUrl.protocol !==
-                            "https:" ||
-                        parsedUrl.hostname !==
-                            "image.tmdb.org"
-                    ) {
-                        return null;
-                    }
-
-                    if (
-                        usedUrls.has(
-                            parsedUrl.href
-                        )
-                    ) {
-                        return null;
-                    }
-
-                    usedUrls.add(
-                        parsedUrl.href
-                    );
-
-                    return {
-                        id:
-                            item.id ?? "",
-
-                        title:
-                            item.title ??
-                            "Contenido de VeiCloud",
-
-                        type:
-                            item.type ??
-                            "unknown",
-
-                        backdropUrl:
-                            parsedUrl.href
-                    };
-                } catch {
-                    return null;
-                }
-            }
+app.use(
+    express.static(
+        path.join(
+            __dirname
         )
-        .filter(Boolean);
-}
+    )
+);
 
 /*
- * El mosaico utiliza ocho espacios.
- *
- * En el caso extraño de que TMDB devuelva menos imágenes,
- * reutilizamos algunas para no romper el diseño.
+ * Abre la portada principal cuando alguien entra
+ * directamente al dominio.
  */
-function ensureEightBackdrops(backdrops) {
-    const result =
-        [...backdrops];
-
-    let index =
-        0;
-
-    while (
-        result.length < 8 &&
-        backdrops.length > 0
-    ) {
-        result.push(
-            backdrops[
-                index %
-                backdrops.length
-            ]
-        );
-
-        index +=
-            1;
-    }
-
-    return result.slice(
-        0,
-        8
-    );
-}
-
-/*
- * Descarga silenciosamente las imágenes antes de
- * insertarlas para evitar destellos vacíos en pantalla.
- */
-async function preloadBackdrops(backdrops) {
-    const preloadTasks =
-        backdrops.map(
-            (item) => {
-                return new Promise(
-                    (resolve) => {
-                        const image =
-                            new Image();
-
-                        image.onload =
-                            resolve;
-
-                        image.onerror =
-                            resolve;
-
-                        image.src =
-                            item.backdropUrl;
-                    }
-                );
-            }
-        );
-
-    await Promise.all(
-        preloadTasks
-    );
-}
-
-/*
- * Cambia el orden de las imágenes cada cierto tiempo.
- * Así el fondo se siente vivo sin marear al visitante.
- */
-function restartMosaicRotation() {
-    if (
-        mosaicRotationTimer !== null
-    ) {
-        window.clearInterval(
-            mosaicRotationTimer
-        );
-    }
-
-    mosaicRotationTimer =
-        window.setInterval(
-            () => {
-                currentBackdrops =
-                    rotateBackdrops(
-                        currentBackdrops
-                    );
-
-                renderBackdropMosaic(
-                    currentBackdrops
-                );
-            },
-            MOSAIC_ROTATION_INTERVAL_MS
-        );
-}
-
-/*
- * Mueve la primera portada al final.
- */
-function rotateBackdrops(backdrops) {
-    if (
-        backdrops.length <= 1
-    ) {
-        return backdrops;
-    }
-
-    return [
-        ...backdrops.slice(1),
-        backdrops[0]
-    ];
-}
-
-/*
- * Inyecta el fondo dinámico del hero.
- *
- * Escritorio:
- * - cuatro columnas
- * - dos filas
- *
- * Móvil:
- * - dos columnas
- * - cuatro filas
- */
-function renderBackdropMosaic(backdrops) {
-    const imageLayers =
-        backdrops
-            .map(
-                (item) =>
-                    `url("${item.backdropUrl}")`
+app.get(
+    "/",
+    (
+        request,
+        response
+    ) => {
+        response.sendFile(
+            path.join(
+                __dirname,
+                "index.html"
             )
-            .join(",\n");
-
-    let dynamicStyle =
-        document.getElementById(
-            "tmdb-dynamic-mosaic"
-        );
-
-    if (!dynamicStyle) {
-        dynamicStyle =
-            document.createElement(
-                "style"
-            );
-
-        dynamicStyle.id =
-            "tmdb-dynamic-mosaic";
-
-        document.head.appendChild(
-            dynamicStyle
         );
     }
+);
 
-    dynamicStyle.textContent =
-        `
-        /*
-         * Fondo generado automáticamente desde TMDB.
-         */
-
-        .hero::before {
-            background-image:
-                linear-gradient(
-                    90deg,
-                    rgba(5, 5, 5, 1) 0%,
-                    rgba(5, 5, 5, 0.98) 16%,
-                    rgba(5, 5, 5, 0.88) 32%,
-                    rgba(5, 5, 5, 0.52) 56%,
-                    rgba(5, 5, 5, 0.28) 78%,
-                    rgba(5, 5, 5, 0.52) 100%
-                ),
-                linear-gradient(
-                    0deg,
-                    rgba(5, 5, 5, 1) 0%,
-                    rgba(5, 5, 5, 0.66) 15%,
-                    rgba(5, 5, 5, 0.06) 48%,
-                    rgba(5, 5, 5, 0.36) 100%
-                ),
-                ${imageLayers};
-
-            background-repeat:
-                no-repeat;
-
-            background-size:
-                100% 100%,
-                100% 100%,
-                25% 50%,
-                25% 50%,
-                25% 50%,
-                25% 50%,
-                25% 50%,
-                25% 50%,
-                25% 50%,
-                25% 50%;
-
-            background-position:
-                center,
-                center,
-                0% 0%,
-                33.333% 0%,
-                66.667% 0%,
-                100% 0%,
-                0% 100%,
-                33.333% 100%,
-                66.667% 100%,
-                100% 100%;
-
-            transition:
-                opacity 600ms ease;
-        }
-
-        @media (max-width: 900px) {
-            .hero::before {
-                background-size:
-                    100% 100%,
-                    100% 100%,
-                    50% 25%,
-                    50% 25%,
-                    50% 25%,
-                    50% 25%,
-                    50% 25%,
-                    50% 25%,
-                    50% 25%,
-                    50% 25%;
-
-                background-position:
-                    center,
-                    center,
-                    0% 0%,
-                    100% 0%,
-                    0% 33.333%,
-                    100% 33.333%,
-                    0% 66.667%,
-                    100% 66.667%,
-                    0% 100%,
-                    100% 100%;
-            }
-        }
-
-        @media (max-width: 600px) {
-            .hero::before {
-                background-image:
-                    linear-gradient(
-                        0deg,
-                        rgba(5, 5, 5, 1) 0%,
-                        rgba(5, 5, 5, 0.98) 26%,
-                        rgba(5, 5, 5, 0.61) 55%,
-                        rgba(5, 5, 5, 0.28) 100%
-                    ),
-                    linear-gradient(
-                        90deg,
-                        rgba(5, 5, 5, 0.18),
-                        rgba(5, 5, 5, 0.10)
-                    ),
-                    ${imageLayers};
-
-                background-size:
-                    100% 100%,
-                    100% 100%,
-                    62% 25%,
-                    62% 25%,
-                    62% 25%,
-                    62% 25%,
-                    62% 25%,
-                    62% 25%,
-                    62% 25%,
-                    62% 25%;
-
-                background-position:
-                    center,
-                    center,
-                    -18% 0%,
-                    118% 0%,
-                    -18% 33.333%,
-                    118% 33.333%,
-                    -18% 66.667%,
-                    118% 66.667%,
-                    -18% 100%,
-                    118% 100%;
-            }
-        }
-        `;
-}
+app.listen(
+    PORT,
+    () => {
+        console.log(
+            `VeiCloud Web funcionando en el puerto ${PORT}.`
+        );
+    }
+);
