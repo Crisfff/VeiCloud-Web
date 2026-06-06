@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="Selecciona tu perfil de VeiCloud."
+    >
+
+    <title>Seleccionar perfil | VeiCloud</title>
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="styles.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="profiles.css"
+    >
+
+    <!--
+        Mantiene el mismo fondo dinámico
+        de películas y series obtenido desde TMDB.
+    -->
+    <script
+        src="script.js"
+        defer
+    ></script>
+
+    <!--
+        En el siguiente paso este archivo cargará
+        los perfiles reales desde Firebase.
+    -->
+    <script
+        src="profiles.js"
+        defer
+    ></script>
+</head>
+
+<body class="profiles-page">
+
+    <main class="profiles-main">
+
+        <section class="hero profiles-hero">
+
+            <div class="hero-overlay"></div>
+
+            <header class="profiles-topbar">
+
+                <a
+                    class="profiles-brand"
+                    href="index.html"
+                    aria-label="Inicio de VeiCloud"
+                >
+                    VeiCloud
+                </a>
+
+                <button
+                    class="profiles-logout-button"
+                    id="logout-button"
+                    type="button"
+                >
+                    Cerrar sesión
+                </button>
+
+            </header>
+
+            <div class="profiles-content">
+
+                <section
+                    class="profiles-panel"
+                    aria-labelledby="profiles-title"
+                >
+
+                    <p class="profiles-label">
+                        VEICLOUD
+                    </p>
+
+                    <h1 id="profiles-title">
+                        ¿Quién está viendo?
+                    </h1>
+
+                    <p class="profiles-description">
+                        Elige un perfil para continuar.
+                    </p>
+
+                    <p
+                        class="profiles-message"
+                        id="profiles-message"
+                        aria-live="polite"
+                    >
+                        Cargando tus perfiles...
+                    </p>
+
+                    <div
+                        class="profiles-grid"
+                        id="profiles-grid"
+                        aria-label="Perfiles disponibles"
+                    >
+                    </div>
+
+                    <a
+                        class="profiles-back-link"
+                        href="index.html"
+                    >
+                        ← Volver al inicio
+                    </a>
+
+                </section>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</body>
+</html>
