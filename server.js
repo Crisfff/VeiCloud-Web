@@ -9,7 +9,7 @@ const PORT =
 
 /*
  * =========================================================
- * VARIABLES PRIVADAS DE RENDER
+ * VARIABLES PRIVADAS GUARDADAS EN RENDER
  * =========================================================
  */
 
@@ -50,7 +50,7 @@ const REFRESH_TOKEN_COOKIE_DURATION_SECONDS =
     30 * 24 * 60 * 60;
 
 /*
- * Permite recibir formularios JSON desde el navegador.
+ * Permite recibir JSON desde login.js.
  */
 app.use(
     express.json(
@@ -62,10 +62,10 @@ app.use(
 
 /*
  * =========================================================
- * PROTECCIÓN DE ARCHIVOS INTERNOS
+ * BLOQUEO DE ARCHIVOS INTERNOS
  * =========================================================
  *
- * Evita que ciertos archivos del servidor puedan descargarse
+ * server.js y package.json no deben descargarse
  * directamente desde el navegador.
  */
 
@@ -107,9 +107,66 @@ app.use(
 
 /*
  * =========================================================
- * UTILIDADES DE COOKIES
+ * UTILIDADES PARA COOKIES
  * =========================================================
  */
+
+function parseCookies(
+    cookieHeader
+) {
+    if (!cookieHeader) {
+        return {};
+    }
+
+    return cookieHeader
+        .split(";")
+        .map(
+            (part) =>
+                part.trim()
+        )
+        .filter(Boolean)
+        .reduce(
+            (
+                cookies,
+                part
+            ) => {
+                const separatorIndex =
+                    part.indexOf("=");
+
+                if (
+                    separatorIndex ===
+                    -1
+                ) {
+                    return cookies;
+                }
+
+                const name =
+                    part.slice(
+                        0,
+                        separatorIndex
+                    );
+
+                const rawValue =
+                    part.slice(
+                        separatorIndex +
+                        1
+                    );
+
+                try {
+                    cookies[name] =
+                        decodeURIComponent(
+                            rawValue
+                        );
+                } catch {
+                    cookies[name] =
+                        rawValue;
+                }
+
+                return cookies;
+            },
+            {}
+        );
+}
 
 function createSecureCookie(
     name,
@@ -139,9 +196,80 @@ function createExpiredCookie(
     ].join("; ");
 }
 
+function setSessionCookies(
+    response,
+    idToken,
+    refreshToken
+) {
+    response.setHeader(
+        "Set-Cookie",
+        [
+            createSecureCookie(
+                ID_TOKEN_COOKIE_NAME,
+                idToken,
+                ID_TOKEN_COOKIE_DURATION_SECONDS
+            ),
+
+            createSecureCookie(
+                REFRESH_TOKEN_COOKIE_NAME,
+                refreshToken,
+                REFRESH_TOKEN_COOKIE_DURATION_SECONDS
+            )
+        ]
+    );
+}
+
+function clearSessionCookies(
+    response
+) {
+    response.setHeader(
+        "Set-Cookie",
+        [
+            createExpiredCookie(
+                ID_TOKEN_COOKIE_NAME
+            ),
+
+            createExpiredCookie(
+                REFRESH_TOKEN_COOKIE_NAME
+            )
+        ]
+    );
+}
+
 /*
- * Convierte errores técnicos de Firebase en mensajes sencillos.
+ * =========================================================
+ * UTILIDADES PARA FIREBASE
+ * =========================================================
  */
+
+function requireFirebaseConfiguration() {
+    if (
+        !FIREBASE_WEB_API_KEY
+    ) {
+        throw new Error(
+            "Falta configurar FIREBASE_WEB_API_KEY en Render."
+        );
+    }
+
+    if (
+        !FIREBASE_DATABASE_URL
+    ) {
+        throw new Error(
+            "Falta configurar FIREBASE_DATABASE_URL en Render."
+        );
+    }
+}
+
+function getFirebaseDatabaseBaseUrl() {
+    requireFirebaseConfiguration();
+
+    return FIREBASE_DATABASE_URL
+        .replace(
+            /\/+$/,
+            ""
+        );
+}
+
 function getReadableFirebaseAuthError(
     firebaseErrorCode
 ) {
@@ -172,6 +300,280 @@ function getReadableFirebaseAuthError(
 }
 
 /*
+ * Consulta Firebase Authentication para comprobar
+ * que el ID token pertenece realmente a una cuenta válida.
+ */
+async function lookupFirebaseAccount(
+    idToken
+) {
+    if (
+        !idToken
+    ) {
+        return null;
+    }
+
+    if (
+        !FIREBASE_WEB_API_KEY
+    ) {
+        throw new Error(
+            "Falta configurar FIREBASE_WEB_API_KEY en Render."
+        );
+    }
+
+    const lookupUrl =
+        "https://identitytoolkit.googleapis.com/" +
+        "v1/accounts:lookup" +
+        `?key=${encodeURIComponent(FIREBASE_WEB_API_KEY)}`;
+
+    const lookupResponse =
+        await fetch(
+            lookupUrl,
+            {
+                method:
+                    "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json",
+
+                    Accept:
+                        "application/json"
+                },
+
+                body:
+                    JSON.stringify(
+                        {
+                            idToken
+                        }
+                    )
+            }
+        );
+
+    if (
+        !lookupResponse.ok
+    ) {
+        return null;
+    }
+
+    const lookupData =
+        await lookupResponse.json();
+
+    const user =
+        lookupData
+            ?.users
+            ?.[0];
+
+    if (
+        !user?.localId
+    ) {
+        return null;
+    }
+
+    return {
+        uid:
+            user.localId,
+
+        email:
+            user.email ||
+            ""
+    };
+}
+
+/*
+ * Renueva automáticamente la sesión cuando
+ * el ID token anterior ya ha caducado.
+ */
+async function refreshFirebaseSession(
+    refreshToken
+) {
+    if (
+        !refreshToken
+    ) {
+        return null;
+    }
+
+    if (
+        !FIREBASE_WEB_API_KEY
+    ) {
+        throw new Error(
+            "Falta configurar FIREBASE_WEB_API_KEY en Render."
+        );
+    }
+
+    const refreshUrl =
+        "https://securetoken.googleapis.com/" +
+        "v1/token" +
+        `?key=${encodeURIComponent(FIREBASE_WEB_API_KEY)}`;
+
+    const formBody =
+        new URLSearchParams();
+
+    formBody.set(
+        "grant_type",
+        "refresh_token"
+    );
+
+    formBody.set(
+        "refresh_token",
+        refreshToken
+    );
+
+    const refreshResponse =
+        await fetch(
+            refreshUrl,
+            {
+                method:
+                    "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/x-www-form-urlencoded",
+
+                    Accept:
+                        "application/json"
+                },
+
+                body:
+                    formBody.toString()
+            }
+        );
+
+    if (
+        !refreshResponse.ok
+    ) {
+        return null;
+    }
+
+    const refreshData =
+        await refreshResponse.json();
+
+    if (
+        !refreshData.id_token ||
+        !refreshData.refresh_token ||
+        !refreshData.user_id
+    ) {
+        return null;
+    }
+
+    return {
+        uid:
+            refreshData.user_id,
+
+        idToken:
+            refreshData.id_token,
+
+        refreshToken:
+            refreshData.refresh_token
+    };
+}
+
+/*
+ * Recupera la sesión del usuario.
+ *
+ * Primero intenta usar el ID token actual.
+ * Si ya venció, utiliza el refresh token.
+ */
+async function getAuthenticatedFirebaseSession(
+    request,
+    response
+) {
+    const cookies =
+        parseCookies(
+            request.headers.cookie
+        );
+
+    const currentIdToken =
+        cookies[
+            ID_TOKEN_COOKIE_NAME
+        ];
+
+    const currentRefreshToken =
+        cookies[
+            REFRESH_TOKEN_COOKIE_NAME
+        ];
+
+    if (
+        !currentIdToken &&
+        !currentRefreshToken
+    ) {
+        return null;
+    }
+
+    if (
+        currentIdToken
+    ) {
+        const firebaseAccount =
+            await lookupFirebaseAccount(
+                currentIdToken
+            );
+
+        if (
+            firebaseAccount
+        ) {
+            return {
+                uid:
+                    firebaseAccount.uid,
+
+                email:
+                    firebaseAccount.email,
+
+                idToken:
+                    currentIdToken,
+
+                refreshToken:
+                    currentRefreshToken ||
+                    ""
+            };
+        }
+    }
+
+    if (
+        !currentRefreshToken
+    ) {
+        clearSessionCookies(
+            response
+        );
+
+        return null;
+    }
+
+    const renewedSession =
+        await refreshFirebaseSession(
+            currentRefreshToken
+        );
+
+    if (
+        !renewedSession
+    ) {
+        clearSessionCookies(
+            response
+        );
+
+        return null;
+    }
+
+    setSessionCookies(
+        response,
+        renewedSession.idToken,
+        renewedSession.refreshToken
+    );
+
+    return {
+        uid:
+            renewedSession.uid,
+
+        email:
+            "",
+
+        idToken:
+            renewedSession.idToken,
+
+        refreshToken:
+            renewedSession.refreshToken
+    };
+}
+
+/*
  * =========================================================
  * FIREBASE AUTHENTICATION
  * =========================================================
@@ -179,7 +581,7 @@ function getReadableFirebaseAuthError(
 
 /*
  * Inicia sesión con el mismo correo y contraseña
- * utilizados en la aplicación Android.
+ * usados en la aplicación Android.
  */
 app.post(
     "/api/auth/login",
@@ -210,7 +612,9 @@ app.post(
                     .status(400)
                     .json(
                         {
-                            ok: false,
+                            ok:
+                                false,
+
                             message:
                                 "Escribe tu correo y contraseña."
                         }
@@ -220,14 +624,18 @@ app.post(
             }
 
             if (
-                email.length > 180 ||
-                password.length > 256
+                email.length >
+                    180 ||
+                password.length >
+                    256
             ) {
                 response
                     .status(400)
                     .json(
                         {
-                            ok: false,
+                            ok:
+                                false,
+
                             message:
                                 "Los datos introducidos no son válidos."
                         }
@@ -236,11 +644,7 @@ app.post(
                 return;
             }
 
-            if (!FIREBASE_WEB_API_KEY) {
-                throw new Error(
-                    "Falta configurar FIREBASE_WEB_API_KEY en Render."
-                );
-            }
+            requireFirebaseConfiguration();
 
             const firebaseLoginUrl =
                 "https://identitytoolkit.googleapis.com/" +
@@ -251,7 +655,8 @@ app.post(
                 await fetch(
                     firebaseLoginUrl,
                     {
-                        method: "POST",
+                        method:
+                            "POST",
 
                         headers: {
                             "Content-Type":
@@ -266,6 +671,7 @@ app.post(
                                 {
                                     email,
                                     password,
+
                                     returnSecureToken:
                                         true
                                 }
@@ -276,7 +682,9 @@ app.post(
             const firebaseData =
                 await firebaseResponse.json();
 
-            if (!firebaseResponse.ok) {
+            if (
+                !firebaseResponse.ok
+            ) {
                 const firebaseErrorCode =
                     firebaseData
                         ?.error
@@ -290,10 +698,14 @@ app.post(
                         : 401;
 
                 response
-                    .status(statusCode)
+                    .status(
+                        statusCode
+                    )
                     .json(
                         {
-                            ok: false,
+                            ok:
+                                false,
+
                             message:
                                 getReadableFirebaseAuthError(
                                     firebaseErrorCode
@@ -314,21 +726,10 @@ app.post(
                 );
             }
 
-            response.setHeader(
-                "Set-Cookie",
-                [
-                    createSecureCookie(
-                        ID_TOKEN_COOKIE_NAME,
-                        firebaseData.idToken,
-                        ID_TOKEN_COOKIE_DURATION_SECONDS
-                    ),
-
-                    createSecureCookie(
-                        REFRESH_TOKEN_COOKIE_NAME,
-                        firebaseData.refreshToken,
-                        REFRESH_TOKEN_COOKIE_DURATION_SECONDS
-                    )
-                ]
+            setSessionCookies(
+                response,
+                firebaseData.idToken,
+                firebaseData.refreshToken
             );
 
             response.setHeader(
@@ -340,7 +741,8 @@ app.post(
                 .status(200)
                 .json(
                     {
-                        ok: true,
+                        ok:
+                            true,
 
                         message:
                             "Sesión iniciada correctamente.",
@@ -349,7 +751,9 @@ app.post(
                             "/profiles.html"
                     }
                 );
-        } catch (error) {
+        } catch (
+            error
+        ) {
             console.error(
                 "Error iniciando sesión con Firebase:",
                 error.message
@@ -359,7 +763,8 @@ app.post(
                 .status(500)
                 .json(
                     {
-                        ok: false,
+                        ok:
+                            false,
 
                         message:
                             "Ocurrió un error al conectar con el servidor."
@@ -378,17 +783,8 @@ app.post(
         request,
         response
     ) => {
-        response.setHeader(
-            "Set-Cookie",
-            [
-                createExpiredCookie(
-                    ID_TOKEN_COOKIE_NAME
-                ),
-
-                createExpiredCookie(
-                    REFRESH_TOKEN_COOKIE_NAME
-                )
-            ]
+        clearSessionCookies(
+            response
         );
 
         response.setHeader(
@@ -398,11 +794,241 @@ app.post(
 
         response.json(
             {
-                ok: true
+                ok:
+                    true
             }
         );
     }
 );
+
+/*
+ * =========================================================
+ * PERFILES DEL USUARIO
+ * =========================================================
+ */
+
+/*
+ * Lee los perfiles desde:
+ *
+ * users
+ *   └── UID
+ *       └── profiles
+ */
+app.get(
+    "/api/profiles",
+    async (
+        request,
+        response
+    ) => {
+        try {
+            const session =
+                await getAuthenticatedFirebaseSession(
+                    request,
+                    response
+                );
+
+            if (
+                !session
+            ) {
+                response
+                    .status(401)
+                    .json(
+                        {
+                            ok:
+                                false,
+
+                            message:
+                                "Tu sesión ha caducado. Inicia sesión nuevamente.",
+
+                            redirectUrl:
+                                "/login.html"
+                        }
+                    );
+
+                return;
+            }
+
+            const databaseBaseUrl =
+                getFirebaseDatabaseBaseUrl();
+
+            const profilesUrl =
+                `${databaseBaseUrl}` +
+                `/users/${encodeURIComponent(session.uid)}` +
+                "/profiles.json" +
+                `?auth=${encodeURIComponent(session.idToken)}`;
+
+            const profilesResponse =
+                await fetch(
+                    profilesUrl,
+                    {
+                        method:
+                            "GET",
+
+                        headers: {
+                            Accept:
+                                "application/json"
+                        }
+                    }
+                );
+
+            if (
+                !profilesResponse.ok
+            ) {
+                const firebaseErrorText =
+                    await profilesResponse.text();
+
+                console.error(
+                    "Firebase no permitió leer los perfiles:",
+                    firebaseErrorText
+                );
+
+                response
+                    .status(403)
+                    .json(
+                        {
+                            ok:
+                                false,
+
+                            message:
+                                "No fue posible acceder a los perfiles de esta cuenta."
+                        }
+                    );
+
+                return;
+            }
+
+            const rawProfiles =
+                await profilesResponse.json();
+
+            const profiles =
+                normalizeProfiles(
+                    rawProfiles
+                );
+
+            response.setHeader(
+                "Cache-Control",
+                "no-store"
+            );
+
+            response.json(
+                {
+                    ok:
+                        true,
+
+                    count:
+                        profiles.length,
+
+                    profiles
+                }
+            );
+        } catch (
+            error
+        ) {
+            console.error(
+                "Error cargando perfiles:",
+                error.message
+            );
+
+            response
+                .status(500)
+                .json(
+                    {
+                        ok:
+                            false,
+
+                        message:
+                            "No fue posible cargar los perfiles."
+                    }
+                );
+        }
+    }
+);
+
+/*
+ * Convierte los perfiles guardados en Firebase
+ * en un formato sencillo para profiles.js.
+ *
+ * Acepta varios nombres posibles para el avatar
+ * para adaptarse a la estructura actual de Android.
+ */
+function normalizeProfiles(
+    rawProfiles
+) {
+    if (
+        !rawProfiles ||
+        typeof rawProfiles !==
+            "object"
+    ) {
+        return [];
+    }
+
+    const profileEntries =
+        Array.isArray(
+            rawProfiles
+        )
+            ? rawProfiles
+                .map(
+                    (
+                        profile,
+                        index
+                    ) => [
+                        String(index),
+                        profile
+                    ]
+                )
+            : Object.entries(
+                rawProfiles
+            );
+
+    return profileEntries
+        .filter(
+            (
+                [
+                    ,
+                    profile
+                ]
+            ) =>
+                profile &&
+                typeof profile ===
+                    "object"
+        )
+        .map(
+            (
+                [
+                    profileId,
+                    profile
+                ]
+            ) => {
+                return {
+                    id:
+                        profileId,
+
+                    name:
+                        String(
+                            profile.name ||
+                            profile.profileName ||
+                            "Perfil"
+                        ),
+
+                    iconUrl:
+                        String(
+                            profile.iconUrl ||
+                            profile.profileIconUrl ||
+                            profile.avatarUrl ||
+                            profile.imageUrl ||
+                            ""
+                        ),
+
+                    isKids:
+                        Boolean(
+                            profile.isKids ||
+                            profile.kids ||
+                            false
+                        )
+                };
+            }
+        );
+}
 
 /*
  * =========================================================
@@ -411,8 +1037,11 @@ app.post(
  */
 
 let backdropCache = {
-    expiresAt: 0,
-    items: []
+    expiresAt:
+        0,
+
+    items:
+        []
 };
 
 function shuffleItems(
@@ -423,14 +1052,20 @@ function shuffleItems(
 
     for (
         let index =
-            shuffled.length - 1;
-        index > 0;
-        index -= 1
+            shuffled.length -
+            1;
+        index >
+            0;
+        index -=
+            1
     ) {
         const randomIndex =
             Math.floor(
                 Math.random() *
-                (index + 1)
+                (
+                    index +
+                    1
+                )
             );
 
         [
@@ -484,7 +1119,9 @@ async function loadTrendingBackdrops() {
         return backdropCache.items;
     }
 
-    if (!TMDB_TOKEN) {
+    if (
+        !TMDB_TOKEN
+    ) {
         throw new Error(
             "Falta configurar TMDB_TOKEN en Render."
         );
@@ -499,7 +1136,8 @@ async function loadTrendingBackdrops() {
         await fetch(
             tmdbUrl,
             {
-                method: "GET",
+                method:
+                    "GET",
 
                 headers: {
                     accept:
@@ -511,7 +1149,9 @@ async function loadTrendingBackdrops() {
             }
         );
 
-    if (!tmdbResponse.ok) {
+    if (
+        !tmdbResponse.ok
+    ) {
         throw new Error(
             `TMDB respondió con el código ${tmdbResponse.status}.`
         );
@@ -526,7 +1166,9 @@ async function loadTrendingBackdrops() {
     const normalizedItems =
         tmdbData.results
             .filter(
-                (item) =>
+                (
+                    item
+                ) =>
                     (
                         item.media_type ===
                             "movie" ||
@@ -538,7 +1180,9 @@ async function loadTrendingBackdrops() {
                     )
             )
             .map(
-                (item) => {
+                (
+                    item
+                ) => {
                     return {
                         id:
                             item.id,
@@ -557,7 +1201,9 @@ async function loadTrendingBackdrops() {
                 }
             )
             .filter(
-                (item) => {
+                (
+                    item
+                ) => {
                     if (
                         usedImages.has(
                             item.backdropUrl
@@ -614,7 +1260,9 @@ app.get(
                     "all"
                     ? allItems
                     : allItems.filter(
-                        (item) =>
+                        (
+                            item
+                        ) =>
                             item.type ===
                             requestedType
                     );
@@ -644,7 +1292,9 @@ app.get(
                         selectedItems
                 }
             );
-        } catch (error) {
+        } catch (
+            error
+        ) {
             console.error(
                 "Error cargando portadas desde TMDB:",
                 error.message
@@ -674,8 +1324,11 @@ app.use(
             __dirname
         ),
         {
-            index: false,
-            dotfiles: "deny"
+            index:
+                false,
+
+            dotfiles:
+                "deny"
         }
     )
 );
@@ -711,7 +1364,7 @@ app.listen(
         console.log(
             FIREBASE_DATABASE_URL
                 ? "Firebase Database URL configurada."
-                : "Aviso: todavía falta FIREBASE_DATABASE_URL."
+                : "Aviso: falta configurar FIREBASE_DATABASE_URL."
         );
     }
 );
