@@ -1,19 +1,32 @@
 /*
  * =========================================================
  * VEICLOUD WEB
- * Rutas privadas para cargar el catálogo desde Firebase
+ * CATÁLOGO REAL DESDE FIREBASE
  * =========================================================
  *
- * Lee:
+ * Estructura actual de Firebase:
  *
  * Movies
- * Series
+ * ├── pelicula-id
+ * │   └── type: "movie"
+ * └── serie-id
+ *     └── type: "tv"
+ *
+ * SeriesEpisodes
+ * └── serie-id
+ *     └── season_1
+ *         ├── episode_1
+ *         └── episode_2
+ *
  * homeFeatured
+ * └── contenido destacado del Home
  *
- * desde Firebase Realtime Database.
- *
- * No envía enlaces de reproducción al navegador todavía.
- * Solo entrega la información visual necesaria para Home.
+ * Este módulo:
+ * - separa películas y series automáticamente
+ * - cuenta temporadas y episodios disponibles
+ * - evita mezclar títulos e imágenes de contenidos distintos
+ * - ignora nodos incompletos
+ * - no expone enlaces de reproducción
  */
 
 const DEFAULT_ROW_LIMIT =
@@ -109,6 +122,51 @@ function cleanUrl(
     }
 }
 
+function normalizeTimestamp(
+    value
+) {
+    if (
+        typeof value ===
+        "number"
+    ) {
+        return value;
+    }
+
+    const parsedValue =
+        Number.parseInt(
+            value,
+            10
+        );
+
+    return Number.isNaN(
+        parsedValue
+    )
+        ? 0
+        : parsedValue;
+}
+
+function normalizePositiveInteger(
+    value
+) {
+    const parsedValue =
+        Number.parseInt(
+            value,
+            10
+        );
+
+    if (
+        Number.isNaN(
+            parsedValue
+        ) ||
+        parsedValue <
+            0
+    ) {
+        return 0;
+    }
+
+    return parsedValue;
+}
+
 function normalizeLimit(
     rawLimit
 ) {
@@ -135,32 +193,144 @@ function normalizeLimit(
     );
 }
 
-function normalizeTimestamp(
+/*
+ * =========================================================
+ * NORMALIZAR TIPO DE CONTENIDO
+ * =========================================================
+ */
+
+function normalizeContentType(
     value
 ) {
+    const rawType =
+        cleanText(
+            value
+        )
+            .toLowerCase();
+
+    const seriesTypes = [
+        "tv",
+        "series",
+        "serie",
+        "show",
+        "telenovela"
+    ];
+
     if (
-        typeof value ===
-        "number"
+        seriesTypes.includes(
+            rawType
+        )
     ) {
-        return value;
+        return "series";
     }
 
-    const parsedValue =
-        Number.parseInt(
-            value,
-            10
-        );
-
-    return Number.isNaN(
-        parsedValue
-    )
-        ? 0
-        : parsedValue;
+    return "movie";
 }
 
 /*
  * =========================================================
- * CONSULTAR FIREBASE
+ * NORMALIZAR GÉNEROS
+ * =========================================================
+ */
+
+function normalizeGenres(
+    rawGenres
+) {
+    if (
+        !rawGenres
+    ) {
+        return "";
+    }
+
+    if (
+        typeof rawGenres ===
+        "string"
+    ) {
+        return rawGenres
+            .trim();
+    }
+
+    if (
+        Array.isArray(
+            rawGenres
+        )
+    ) {
+        return rawGenres
+            .map(
+                (
+                    genre
+                ) => {
+                    if (
+                        typeof genre ===
+                        "string"
+                    ) {
+                        return genre.trim();
+                    }
+
+                    if (
+                        genre &&
+                        typeof genre ===
+                            "object"
+                    ) {
+                        return cleanText(
+                            genre.name ||
+                            genre.title
+                        );
+                    }
+
+                    return "";
+                }
+            )
+            .filter(
+                Boolean
+            )
+            .join(", ");
+    }
+
+    if (
+        typeof rawGenres ===
+        "object"
+    ) {
+        return Object.values(
+            rawGenres
+        )
+            .map(
+                (
+                    genre
+                ) => {
+                    if (
+                        typeof genre ===
+                        "string"
+                    ) {
+                        return genre.trim();
+                    }
+
+                    if (
+                        genre &&
+                        typeof genre ===
+                            "object"
+                    ) {
+                        return cleanText(
+                            genre.name ||
+                            genre.title
+                        );
+                    }
+
+                    return "";
+                }
+            )
+            .filter(
+                Boolean
+            )
+            .join(", ");
+    }
+
+    return "";
+}
+
+/*
+ * =========================================================
+ * LEER FIREBASE
  * =========================================================
  */
 
@@ -216,17 +386,16 @@ async function fetchFirebaseJson(
 
 /*
  * =========================================================
- * NORMALIZAR PELÍCULAS Y SERIES
+ * NORMALIZAR CATÁLOGO MAESTRO
  * =========================================================
  */
 
 function normalizeCatalogNode(
-    rawNode,
-    contentType
+    rawCatalog
 ) {
     if (
-        !rawNode ||
-        typeof rawNode !==
+        !rawCatalog ||
+        typeof rawCatalog !==
             "object"
     ) {
         return [];
@@ -234,20 +403,22 @@ function normalizeCatalogNode(
 
     const entries =
         Array.isArray(
-            rawNode
+            rawCatalog
         )
-            ? rawNode
-                .map(
-                    (
-                        item,
+            ? rawCatalog.map(
+                (
+                    item,
+                    index
+                ) => [
+                    String(
                         index
-                    ) => [
-                        String(index),
-                        item
-                    ]
-                )
+                    ),
+
+                    item
+                ]
+            )
             : Object.entries(
-                rawNode
+                rawCatalog
             );
 
     return entries
@@ -269,6 +440,7 @@ function normalizeCatalogNode(
                 const title =
                     cleanText(
                         rawItem.title ||
+                        rawItem.originalTitle ||
                         rawItem.name
                     );
 
@@ -281,16 +453,22 @@ function normalizeCatalogNode(
                     return null;
                 }
 
-                const contentId =
+                const id =
                     cleanText(
                         rawItem.id ||
+                        rawItem.contentId ||
                         firebaseKey
                     );
 
-                const tmdbId =
-                    cleanText(
-                        rawItem.tmdbId ||
-                        rawItem.tmdb_id
+                if (
+                    !id
+                ) {
+                    return null;
+                }
+
+                const type =
+                    normalizeContentType(
+                        rawItem.type
                     );
 
                 const posterUrl =
@@ -306,8 +484,7 @@ function normalizeCatalogNode(
                         rawItem.bannerUrl ||
                         rawItem.backdropUrl ||
                         rawItem.horizontalPosterUrl ||
-                        rawItem.coverUrl ||
-                        posterUrl
+                        rawItem.coverUrl
                     );
 
                 const description =
@@ -320,7 +497,9 @@ function normalizeCatalogNode(
                 const category =
                     cleanText(
                         rawItem.category ||
-                        rawItem.genre ||
+                        rawItem.genre
+                    ) ||
+                    normalizeGenres(
                         rawItem.genres
                     );
 
@@ -345,13 +524,15 @@ function normalizeCatalogNode(
                     );
 
                 return {
-                    id:
-                        contentId,
+                    id,
 
-                    tmdbId,
+                    tmdbId:
+                        cleanText(
+                            rawItem.tmdbId ||
+                            rawItem.tmdb_id
+                        ),
 
-                    type:
-                        contentType,
+                    type,
 
                     title,
 
@@ -367,7 +548,25 @@ function normalizeCatalogNode(
 
                     bannerUrl,
 
-                    createdAt
+                    createdAt,
+
+                    seasonsCount:
+                        normalizePositiveInteger(
+                            rawItem.seasons ||
+                            rawItem.seasonsCount ||
+                            rawItem.numberOfSeasons
+                        ),
+
+                    episodesCount:
+                        normalizePositiveInteger(
+                            rawItem.episodes ||
+                            rawItem.episodesCount ||
+                            rawItem.numberOfEpisodes
+                        ),
+
+                    available:
+                        rawItem.available !==
+                            false
                 };
             }
         )
@@ -386,7 +585,228 @@ function normalizeCatalogNode(
 
 /*
  * =========================================================
- * CONTENIDO DESTACADO
+ * NORMALIZAR CAPÍTULOS DE SERIES
+ * =========================================================
+ *
+ * No enviamos videoUrl al navegador.
+ * Solo calculamos información visual:
+ * - temporadas disponibles
+ * - capítulos disponibles
+ * - imagen del primer episodio
+ */
+
+function normalizeSeriesEpisodes(
+    rawSeriesEpisodes
+) {
+    const seriesEpisodesMap =
+        new Map();
+
+    if (
+        !rawSeriesEpisodes ||
+        typeof rawSeriesEpisodes !==
+            "object"
+    ) {
+        return seriesEpisodesMap;
+    }
+
+    Object.entries(
+        rawSeriesEpisodes
+    ).forEach(
+        (
+            [
+                seriesId,
+                rawSeasons
+            ]
+        ) => {
+            if (
+                !rawSeasons ||
+                typeof rawSeasons !==
+                    "object"
+            ) {
+                return;
+            }
+
+            let seasonsCount =
+                0;
+
+            let episodesCount =
+                0;
+
+            let firstEpisodeStillUrl =
+                "";
+
+            Object.values(
+                rawSeasons
+            ).forEach(
+                (
+                    rawEpisodes
+                ) => {
+                    if (
+                        !rawEpisodes ||
+                        typeof rawEpisodes !==
+                            "object"
+                    ) {
+                        return;
+                    }
+
+                    const episodes =
+                        Object.values(
+                            rawEpisodes
+                        )
+                            .filter(
+                                (
+                                    episode
+                                ) =>
+                                    episode &&
+                                    typeof episode ===
+                                        "object"
+                            );
+
+                    if (
+                        episodes.length ===
+                        0
+                    ) {
+                        return;
+                    }
+
+                    seasonsCount +=
+                        1;
+
+                    episodesCount +=
+                        episodes.length;
+
+                    if (
+                        !firstEpisodeStillUrl
+                    ) {
+                        const firstEpisode =
+                            episodes[0];
+
+                        firstEpisodeStillUrl =
+                            cleanUrl(
+                                firstEpisode.stillUrl ||
+                                firstEpisode.posterUrl ||
+                                firstEpisode.imageUrl
+                            );
+                    }
+                }
+            );
+
+            seriesEpisodesMap.set(
+                String(
+                    seriesId
+                ),
+                {
+                    seasonsCount,
+
+                    episodesCount,
+
+                    firstEpisodeStillUrl
+                }
+            );
+        }
+    );
+
+    return seriesEpisodesMap;
+}
+
+/*
+ * =========================================================
+ * AÑADIR INFORMACIÓN DE EPISODIOS A CADA SERIE
+ * =========================================================
+ */
+
+function attachSeriesEpisodesMetadata(
+    seriesItems,
+    seriesEpisodesMap
+) {
+    return seriesItems.map(
+        (
+            series
+        ) => {
+            const episodeMetadata =
+                seriesEpisodesMap.get(
+                    series.id
+                ) ||
+                {
+                    seasonsCount:
+                        0,
+
+                    episodesCount:
+                        0,
+
+                    firstEpisodeStillUrl:
+                        ""
+                };
+
+            return {
+                ...series,
+
+                seasonsCount:
+                    episodeMetadata.seasonsCount ||
+                    series.seasonsCount ||
+                    0,
+
+                episodesCount:
+                    episodeMetadata.episodesCount ||
+                    series.episodesCount ||
+                    0,
+
+                firstEpisodeStillUrl:
+                    episodeMetadata.firstEpisodeStillUrl,
+
+                hasEpisodes:
+                    episodeMetadata.episodesCount >
+                    0
+            };
+        }
+    );
+}
+
+/*
+ * =========================================================
+ * ELIMINAR DUPLICADOS
+ * =========================================================
+ */
+
+function removeDuplicateContent(
+    items
+) {
+    const usedKeys =
+        new Set();
+
+    return items.filter(
+        (
+            item
+        ) => {
+            const uniqueKey =
+                cleanText(
+                    item.tmdbId ||
+                    item.id ||
+                    item.title
+                )
+                    .toLowerCase();
+
+            if (
+                !uniqueKey ||
+                usedKeys.has(
+                    uniqueKey
+                )
+            ) {
+                return false;
+            }
+
+            usedKeys.add(
+                uniqueKey
+            );
+
+            return true;
+        }
+    );
+}
+
+/*
+ * =========================================================
+ * BUSCAR CONTENIDO POR ID
  * =========================================================
  */
 
@@ -419,6 +839,17 @@ function findContentById(
     );
 }
 
+/*
+ * =========================================================
+ * CONTENIDO DESTACADO
+ * =========================================================
+ *
+ * Regla esencial:
+ *
+ * Nunca usamos el título de una película
+ * con la imagen de otra.
+ */
+
 function normalizeFeaturedContent(
     rawFeatured,
     allContent
@@ -430,15 +861,133 @@ function normalizeFeaturedContent(
             ? rawFeatured
             : {};
 
-    const linkedContent =
-        findContentById(
-            allContent,
+    const requestedContentId =
+        cleanText(
             safeFeatured.contentId ||
             safeFeatured.id ||
             safeFeatured.tmdbId
         );
 
-    const fallbackContent =
+    const linkedContent =
+        findContentById(
+            allContent,
+            requestedContentId
+        );
+
+    /*
+     * Caso ideal:
+     * homeFeatured apunta a un contenido real.
+     */
+    if (
+        linkedContent
+    ) {
+        return {
+            ...linkedContent,
+
+            title:
+                cleanText(
+                    safeFeatured.title ||
+                    linkedContent.title
+                ),
+
+            description:
+                cleanText(
+                    safeFeatured.description ||
+                    linkedContent.description
+                ),
+
+            category:
+                cleanText(
+                    safeFeatured.category ||
+                    linkedContent.category
+                ),
+
+            posterUrl:
+                cleanUrl(
+                    safeFeatured.posterUrl ||
+                    linkedContent.posterUrl
+                ),
+
+            bannerUrl:
+                cleanUrl(
+                    safeFeatured.bannerUrl ||
+                    safeFeatured.backdropUrl ||
+                    linkedContent.bannerUrl ||
+                    linkedContent.posterUrl
+                )
+        };
+    }
+
+    /*
+     * Caso alternativo:
+     * homeFeatured tiene una ficha visual completa,
+     * aunque no apunte a Movies.
+     */
+    const standaloneTitle =
+        cleanText(
+            safeFeatured.title
+        );
+
+    const standalonePosterUrl =
+        cleanUrl(
+            safeFeatured.posterUrl
+        );
+
+    const standaloneBannerUrl =
+        cleanUrl(
+            safeFeatured.bannerUrl ||
+            safeFeatured.backdropUrl
+        );
+
+    if (
+        standaloneTitle &&
+        (
+            standaloneBannerUrl ||
+            standalonePosterUrl
+        )
+    ) {
+        return {
+            id:
+                requestedContentId ||
+                "featured",
+
+            tmdbId:
+                cleanText(
+                    safeFeatured.tmdbId
+                ),
+
+            type:
+                normalizeContentType(
+                    safeFeatured.type
+                ),
+
+            title:
+                standaloneTitle,
+
+            description:
+                cleanText(
+                    safeFeatured.description
+                ),
+
+            category:
+                cleanText(
+                    safeFeatured.category
+                ),
+
+            posterUrl:
+                standalonePosterUrl,
+
+            bannerUrl:
+                standaloneBannerUrl ||
+                standalonePosterUrl
+        };
+    }
+
+    /*
+     * Si homeFeatured está incompleto,
+     * usamos un contenido real completo.
+     */
+    return (
         allContent.find(
             (
                 item
@@ -447,71 +996,17 @@ function normalizeFeaturedContent(
                     item.bannerUrl
                 )
         ) ||
+        allContent.find(
+            (
+                item
+            ) =>
+                Boolean(
+                    item.posterUrl
+                )
+        ) ||
         allContent[0] ||
-        null;
-
-    const baseContent =
-        linkedContent ||
-        fallbackContent;
-
-    if (
-        !baseContent
-    ) {
-        return null;
-    }
-
-    return {
-        id:
-            cleanText(
-                safeFeatured.contentId ||
-                safeFeatured.id ||
-                baseContent.id
-            ),
-
-        tmdbId:
-            cleanText(
-                safeFeatured.tmdbId ||
-                baseContent.tmdbId
-            ),
-
-        type:
-            cleanText(
-                safeFeatured.type ||
-                baseContent.type
-            ),
-
-        title:
-            cleanText(
-                safeFeatured.title ||
-                baseContent.title
-            ),
-
-        description:
-            cleanText(
-                safeFeatured.description ||
-                baseContent.description
-            ),
-
-        category:
-            cleanText(
-                safeFeatured.category ||
-                baseContent.category
-            ),
-
-        posterUrl:
-            cleanUrl(
-                safeFeatured.posterUrl ||
-                baseContent.posterUrl
-            ),
-
-        bannerUrl:
-            cleanUrl(
-                safeFeatured.bannerUrl ||
-                safeFeatured.backdropUrl ||
-                baseContent.bannerUrl ||
-                baseContent.posterUrl
-            )
-    };
+        null
+    );
 }
 
 /*
@@ -571,7 +1066,7 @@ function buildCategories(
 
 /*
  * =========================================================
- * REGISTRAR RUTA
+ * RUTA DEL CATÁLOGO
  * =========================================================
  */
 
@@ -600,7 +1095,9 @@ module.exports =
                         !session
                     ) {
                         response
-                            .status(401)
+                            .status(
+                                401
+                            )
                             .json(
                                 {
                                     ok:
@@ -626,11 +1123,12 @@ module.exports =
                         );
 
                     /*
-                     * Lee el catálogo real de Firebase.
+                     * Lee el catálogo maestro, los capítulos
+                     * y el contenido destacado.
                      */
                     const [
-                        rawMovies,
-                        rawSeries,
+                        rawCatalog,
+                        rawSeriesEpisodes,
                         rawFeatured
                     ] =
                         await Promise.all(
@@ -643,7 +1141,7 @@ module.exports =
 
                                 fetchFirebaseJson(
                                     databaseBaseUrl,
-                                    "Series",
+                                    "SeriesEpisodes",
                                     session.idToken
                                 ),
 
@@ -655,21 +1153,42 @@ module.exports =
                             ]
                         );
 
-                    const allMovies =
-                        normalizeCatalogNode(
-                            rawMovies,
-                            "movie"
+                    const catalogItems =
+                        removeDuplicateContent(
+                            normalizeCatalogNode(
+                                rawCatalog
+                            )
                         );
 
-                    const allSeries =
-                        normalizeCatalogNode(
-                            rawSeries,
-                            "series"
+                    const seriesEpisodesMap =
+                        normalizeSeriesEpisodes(
+                            rawSeriesEpisodes
+                        );
+
+                    const movies =
+                        catalogItems.filter(
+                            (
+                                item
+                            ) =>
+                                item.type ===
+                                "movie"
+                        );
+
+                    const series =
+                        attachSeriesEpisodesMetadata(
+                            catalogItems.filter(
+                                (
+                                    item
+                                ) =>
+                                    item.type ===
+                                    "series"
+                            ),
+                            seriesEpisodesMap
                         );
 
                     const allContent = [
-                        ...allMovies,
-                        ...allSeries
+                        ...movies,
+                        ...series
                     ];
 
                     const featured =
@@ -691,13 +1210,13 @@ module.exports =
                             featured,
 
                             movies:
-                                allMovies.slice(
+                                movies.slice(
                                     0,
                                     rowLimit
                                 ),
 
                             series:
-                                allSeries.slice(
+                                series.slice(
                                     0,
                                     rowLimit
                                 ),
@@ -712,12 +1231,14 @@ module.exports =
                     error
                 ) {
                     console.error(
-                        "Error cargando el catálogo:",
+                        "Error cargando catálogo:",
                         error.message
                     );
 
                     response
-                        .status(500)
+                        .status(
+                            500
+                        )
                         .json(
                             {
                                 ok:
