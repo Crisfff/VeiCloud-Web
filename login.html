@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="Inicia sesión en VeiCloud."
+    >
+
+    <title>Iniciar sesión | VeiCloud</title>
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="styles.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="login.css"
+    >
+
+    <!--
+        Reutilizamos el carousel de TMDB
+        para mantener el mismo ambiente visual.
+    -->
+    <script
+        src="script.js"
+        defer
+    ></script>
+</head>
+
+<body class="login-page">
+
+    <main class="login-main">
+
+        <section class="hero login-hero">
+
+            <div class="hero-overlay"></div>
+
+            <header class="login-topbar">
+
+                <a
+                    class="login-brand"
+                    href="index.html"
+                    aria-label="Volver a VeiCloud"
+                >
+                    VeiCloud
+                </a>
+
+                <a
+                    class="login-back-button"
+                    href="index.html"
+                >
+                    ← Volver
+                </a>
+
+            </header>
+
+            <div class="login-content">
+
+                <section
+                    class="login-card"
+                    aria-labelledby="login-title"
+                >
+
+                    <p class="login-label">
+                        VEICLOUD
+                    </p>
+
+                    <h1 id="login-title">
+                        Iniciar sesión
+                    </h1>
+
+                    <p class="login-description">
+                        Accede a tu cuenta para continuar viendo
+                        tu contenido desde cualquier dispositivo.
+                    </p>
+
+                    <form
+                        class="login-form"
+                        id="login-form"
+                    >
+
+                        <label
+                            class="login-field"
+                            for="login-email"
+                        >
+                            <span>
+                                Correo electrónico
+                            </span>
+
+                            <input
+                                id="login-email"
+                                name="email"
+                                type="email"
+                                placeholder="correo@ejemplo.com"
+                                autocomplete="email"
+                                required
+                            >
+                        </label>
+
+                        <label
+                            class="login-field"
+                            for="login-password"
+                        >
+                            <span>
+                                Contraseña
+                            </span>
+
+                            <div class="password-wrapper">
+
+                                <input
+                                    id="login-password"
+                                    name="password"
+                                    type="password"
+                                    placeholder="Tu contraseña"
+                                    autocomplete="current-password"
+                                    minlength="6"
+                                    required
+                                >
+
+                                <button
+                                    class="password-toggle"
+                                    id="password-toggle"
+                                    type="button"
+                                    aria-label="Mostrar contraseña"
+                                >
+                                    Ver
+                                </button>
+
+                            </div>
+                        </label>
+
+                        <p
+                            class="login-message"
+                            id="login-message"
+                            aria-live="polite"
+                        ></p>
+
+                        <button
+                            class="login-submit-button"
+                            type="submit"
+                        >
+                            Iniciar sesión
+                        </button>
+
+                    </form>
+
+                    <div class="login-divider">
+                        <span></span>
+
+                        <p>
+                            ¿Todavía no tienes acceso?
+                        </p>
+
+                        <span></span>
+                    </div>
+
+                    <a
+                        class="login-register-button"
+                        href="index.html#planes"
+                    >
+                        Ver planes disponibles
+                    </a>
+
+                </section>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</body>
+</html>
