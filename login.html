@@ -42,11 +42,20 @@
     >
 
     <!--
-        Reutilizamos el carousel de TMDB
-        para mantener el mismo ambiente visual.
+        Mantiene el fondo dinámico con portadas
+        horizontales obtenidas desde TMDB.
     -->
     <script
         src="script.js"
+        defer
+    ></script>
+
+    <!--
+        Controla el formulario y envía los datos
+        al servidor privado de Render.
+    -->
+    <script
+        src="login.js"
         defer
     ></script>
 </head>
@@ -64,7 +73,7 @@
                 <a
                     class="login-brand"
                     href="index.html"
-                    aria-label="Volver a VeiCloud"
+                    aria-label="Volver al inicio de VeiCloud"
                 >
                     VeiCloud
                 </a>
@@ -117,6 +126,7 @@
                                 type="email"
                                 placeholder="correo@ejemplo.com"
                                 autocomplete="email"
+                                inputmode="email"
                                 required
                             >
                         </label>
