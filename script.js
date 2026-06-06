@@ -1,46 +1,57 @@
 /*
  * =========================================================
  * VEICLOUD WEB
- * Fondo dinámico con portadas horizontales de TMDB
+ * Fondo dinámico con películas y series desde TMDB
  * =========================================================
  */
 
 const TMDB_BACKDROPS_ENDPOINT =
     "/api/tmdb/backdrops?type=all&limit=8";
 
-const BACKDROP_REFRESH_INTERVAL_MS =
+const BACKDROPS_REFRESH_INTERVAL_MS =
     5 * 60 * 1000;
 
 const MOSAIC_ROTATION_INTERVAL_MS =
-    22 * 1000;
+    20 * 1000;
 
 let currentBackdrops = [];
 
-let mosaicRotationTimer = null;
+let rotationTimer =
+    null;
 
-let backdropsRefreshTimer = null;
+let refreshTimer =
+    null;
 
 /*
- * Espera a que el HTML esté completamente cargado.
+ * Inicia el fondo dinámico cuando la página termina de cargar.
  */
 document.addEventListener(
     "DOMContentLoaded",
     () => {
-        loadTmdbBackdrops();
-
-        backdropsRefreshTimer =
-            window.setInterval(
-                loadTmdbBackdrops,
-                BACKDROP_REFRESH_INTERVAL_MS
-            );
+        initializeTmdbMosaic();
     }
 );
 
+async function initializeTmdbMosaic() {
+    await refreshTmdbBackdrops();
+
+    refreshTimer =
+        window.setInterval(
+            refreshTmdbBackdrops,
+            BACKDROPS_REFRESH_INTERVAL_MS
+        );
+
+    rotationTimer =
+        window.setInterval(
+            rotateMosaic,
+            MOSAIC_ROTATION_INTERVAL_MS
+        );
+}
+
 /*
- * Solicita películas y series al pequeño servidor
- * que creamos en Render.
+ * Obtiene las portadas horizontales desde nuestro servidor.
  */
-async function loadTmdbBackdrops() {
+async function refreshTmdbBackdrops() {
     try {
         const response =
             await fetch(
@@ -48,6 +59,9 @@ async function loadTmdbBackdrops() {
                 {
                     method:
                         "GET",
+
+                    cache:
+                        "no-store",
 
                     headers: {
                         Accept:
@@ -65,53 +79,45 @@ async function loadTmdbBackdrops() {
         const data =
             await response.json();
 
-        const validatedImages =
+        const validatedBackdrops =
             normalizeBackdrops(
                 data.images
             );
 
         if (
-            validatedImages.length === 0
+            validatedBackdrops.length === 0
         ) {
             throw new Error(
-                "TMDB no devolvió imágenes válidas."
+                "No llegaron imágenes válidas desde TMDB."
             );
         }
 
         currentBackdrops =
-            ensureEightBackdrops(
-                validatedImages
+            fillMosaicSlots(
+                validatedBackdrops
             );
 
-        await preloadBackdrops(
+        await preloadImages(
             currentBackdrops
         );
 
-        renderBackdropMosaic(
+        renderTmdbMosaic(
             currentBackdrops
         );
-
-        restartMosaicRotation();
 
         console.log(
-            "Portadas de TMDB cargadas correctamente."
+            "Mosaico de TMDB cargado correctamente."
         );
     } catch (error) {
         console.error(
-            "No fue posible cargar las portadas de TMDB:",
+            "No fue posible cargar el mosaico de TMDB:",
             error
         );
-
-        /*
-         * Si ocurre un error, no borramos el fondo anterior.
-         * La portada continúa funcionando sin quedar vacía.
-         */
     }
 }
 
 /*
- * Conserva solamente enlaces seguros del CDN oficial
- * de imágenes de TMDB.
+ * Conserva únicamente enlaces válidos del CDN oficial de TMDB.
  */
 function normalizeBackdrops(rawImages) {
     if (!Array.isArray(rawImages)) {
@@ -132,15 +138,15 @@ function normalizeBackdrops(rawImages) {
                 }
 
                 try {
-                    const parsedUrl =
+                    const imageUrl =
                         new URL(
                             item.backdropUrl
                         );
 
                     if (
-                        parsedUrl.protocol !==
+                        imageUrl.protocol !==
                             "https:" ||
-                        parsedUrl.hostname !==
+                        imageUrl.hostname !==
                             "image.tmdb.org"
                     ) {
                         return null;
@@ -148,30 +154,29 @@ function normalizeBackdrops(rawImages) {
 
                     if (
                         usedUrls.has(
-                            parsedUrl.href
+                            imageUrl.href
                         )
                     ) {
                         return null;
                     }
 
                     usedUrls.add(
-                        parsedUrl.href
+                        imageUrl.href
                     );
 
                     return {
                         id:
                             item.id ?? "",
 
+                        type:
+                            item.type ?? "unknown",
+
                         title:
                             item.title ??
                             "Contenido de VeiCloud",
 
-                        type:
-                            item.type ??
-                            "unknown",
-
                         backdropUrl:
-                            parsedUrl.href
+                            imageUrl.href
                     };
                 } catch {
                     return null;
@@ -182,12 +187,10 @@ function normalizeBackdrops(rawImages) {
 }
 
 /*
- * El mosaico utiliza ocho espacios.
- *
- * En el caso extraño de que TMDB devuelva menos imágenes,
- * reutilizamos algunas para no romper el diseño.
+ * El mosaico necesita exactamente ocho imágenes.
+ * Si llegan menos, reutiliza algunas sin romper el diseño.
  */
-function ensureEightBackdrops(backdrops) {
+function fillMosaicSlots(backdrops) {
     const result =
         [...backdrops];
 
@@ -216,11 +219,11 @@ function ensureEightBackdrops(backdrops) {
 }
 
 /*
- * Descarga silenciosamente las imágenes antes de
- * insertarlas para evitar destellos vacíos en pantalla.
+ * Precarga las imágenes para evitar cuadros vacíos
+ * durante la primera aparición.
  */
-async function preloadBackdrops(backdrops) {
-    const preloadTasks =
+async function preloadImages(backdrops) {
+    const tasks =
         backdrops.map(
             (item) => {
                 return new Promise(
@@ -242,67 +245,42 @@ async function preloadBackdrops(backdrops) {
         );
 
     await Promise.all(
-        preloadTasks
+        tasks
     );
 }
 
 /*
- * Cambia el orden de las imágenes cada cierto tiempo.
- * Así el fondo se siente vivo sin marear al visitante.
+ * Cambia el orden de las portadas periódicamente.
  */
-function restartMosaicRotation() {
+function rotateMosaic() {
     if (
-        mosaicRotationTimer !== null
+        currentBackdrops.length <= 1
     ) {
-        window.clearInterval(
-            mosaicRotationTimer
-        );
+        return;
     }
 
-    mosaicRotationTimer =
-        window.setInterval(
-            () => {
-                currentBackdrops =
-                    rotateBackdrops(
-                        currentBackdrops
-                    );
-
-                renderBackdropMosaic(
-                    currentBackdrops
-                );
-            },
-            MOSAIC_ROTATION_INTERVAL_MS
-        );
-}
-
-/*
- * Mueve la primera portada al final.
- */
-function rotateBackdrops(backdrops) {
-    if (
-        backdrops.length <= 1
-    ) {
-        return backdrops;
-    }
-
-    return [
-        ...backdrops.slice(1),
-        backdrops[0]
+    currentBackdrops = [
+        ...currentBackdrops.slice(
+            1
+        ),
+        currentBackdrops[0]
     ];
+
+    renderTmdbMosaic(
+        currentBackdrops
+    );
 }
 
 /*
- * Inyecta el fondo dinámico del hero.
+ * Genera el CSS dinámico del mosaico.
  *
  * Escritorio:
- * - cuatro columnas
- * - dos filas
+ * 4 columnas x 2 filas
  *
  * Móvil:
- * - dos columnas
- * - cuatro filas
+ * 2 columnas x 4 filas
  */
-function renderBackdropMosaic(backdrops) {
+function renderTmdbMosaic(backdrops) {
     const imageLayers =
         backdrops
             .map(
@@ -311,48 +289,59 @@ function renderBackdropMosaic(backdrops) {
             )
             .join(",\n");
 
-    let dynamicStyle =
+    let styleElement =
         document.getElementById(
-            "tmdb-dynamic-mosaic"
+            "tmdb-mosaic-style"
         );
 
-    if (!dynamicStyle) {
-        dynamicStyle =
+    if (!styleElement) {
+        styleElement =
             document.createElement(
                 "style"
             );
 
-        dynamicStyle.id =
-            "tmdb-dynamic-mosaic";
+        styleElement.id =
+            "tmdb-mosaic-style";
 
         document.head.appendChild(
-            dynamicStyle
+            styleElement
         );
     }
 
-    dynamicStyle.textContent =
+    styleElement.textContent =
         `
         /*
-         * Fondo generado automáticamente desde TMDB.
+         * Fondo dinámico generado desde TMDB.
          */
 
+        .hero {
+            isolation: isolate !important;
+            background: #050505 !important;
+        }
+
         .hero::before {
+            position: absolute;
+            z-index: 0;
+            inset: 0;
+
+            content: "";
+
             background-image:
                 linear-gradient(
                     90deg,
                     rgba(5, 5, 5, 1) 0%,
-                    rgba(5, 5, 5, 0.98) 16%,
-                    rgba(5, 5, 5, 0.88) 32%,
-                    rgba(5, 5, 5, 0.52) 56%,
-                    rgba(5, 5, 5, 0.28) 78%,
-                    rgba(5, 5, 5, 0.52) 100%
+                    rgba(5, 5, 5, 0.98) 17%,
+                    rgba(5, 5, 5, 0.88) 34%,
+                    rgba(5, 5, 5, 0.48) 58%,
+                    rgba(5, 5, 5, 0.24) 78%,
+                    rgba(5, 5, 5, 0.50) 100%
                 ),
                 linear-gradient(
                     0deg,
                     rgba(5, 5, 5, 1) 0%,
-                    rgba(5, 5, 5, 0.66) 15%,
-                    rgba(5, 5, 5, 0.06) 48%,
-                    rgba(5, 5, 5, 0.36) 100%
+                    rgba(5, 5, 5, 0.62) 14%,
+                    rgba(5, 5, 5, 0.06) 52%,
+                    rgba(5, 5, 5, 0.34) 100%
                 ),
                 ${imageLayers};
 
@@ -383,11 +372,25 @@ function renderBackdropMosaic(backdrops) {
                 66.667% 100%,
                 100% 100%;
 
-            transition:
-                opacity 600ms ease;
+            filter:
+                saturate(0.90)
+                contrast(1.06)
+                brightness(0.92);
+
+            transform:
+                scale(1.02);
+        }
+
+        .hero-overlay {
+            z-index: 1;
+        }
+
+        .hero-content {
+            z-index: 2;
         }
 
         @media (max-width: 900px) {
+
             .hero::before {
                 background-size:
                     100% 100%,
@@ -416,19 +419,20 @@ function renderBackdropMosaic(backdrops) {
         }
 
         @media (max-width: 600px) {
+
             .hero::before {
                 background-image:
                     linear-gradient(
                         0deg,
                         rgba(5, 5, 5, 1) 0%,
-                        rgba(5, 5, 5, 0.98) 26%,
-                        rgba(5, 5, 5, 0.61) 55%,
-                        rgba(5, 5, 5, 0.28) 100%
+                        rgba(5, 5, 5, 0.98) 27%,
+                        rgba(5, 5, 5, 0.60) 57%,
+                        rgba(5, 5, 5, 0.24) 100%
                     ),
                     linear-gradient(
                         90deg,
-                        rgba(5, 5, 5, 0.18),
-                        rgba(5, 5, 5, 0.10)
+                        rgba(5, 5, 5, 0.20),
+                        rgba(5, 5, 5, 0.08)
                     ),
                     ${imageLayers};
 
