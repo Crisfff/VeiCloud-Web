@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="Disfruta tu contenido favorito en VeiCloud."
+    >
+
+    <title>Inicio | VeiCloud</title>
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="styles.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="home.css"
+    >
+
+    <script
+        src="home.js"
+        defer
+    ></script>
+</head>
+
+<body class="home-page">
+
+    <main class="home-shell">
+
+        <!-- =====================================================
+             CABECERA
+             ===================================================== -->
+
+        <header class="home-topbar">
+
+            <h1 class="home-profile-title">
+                Para
+                <span id="selected-profile-name">
+                    tu perfil
+                </span>
+            </h1>
+
+            <div class="home-topbar-actions">
+
+                <button
+                    class="home-icon-button"
+                    type="button"
+                    aria-label="Descargas"
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <path
+                            d="M12 3v11"
+                        ></path>
+
+                        <path
+                            d="m8 10 4 4 4-4"
+                        ></path>
+
+                        <path
+                            d="M5 16v2.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V16"
+                        ></path>
+                    </svg>
+                </button>
+
+                <button
+                    class="home-icon-button"
+                    type="button"
+                    aria-label="Buscar"
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <circle
+                            cx="11"
+                            cy="11"
+                            r="6.5"
+                        ></circle>
+
+                        <path
+                            d="m16 16 5 5"
+                        ></path>
+                    </svg>
+                </button>
+
+            </div>
+
+        </header>
+
+        <!-- =====================================================
+             FILTROS
+             ===================================================== -->
+
+        <nav
+            class="home-category-nav"
+            aria-label="Categorías principales"
+        >
+
+            <button
+                class="home-category-button"
+                type="button"
+            >
+                Series
+            </button>
+
+            <button
+                class="home-category-button"
+                type="button"
+            >
+                Películas
+            </button>
+
+            <button
+                class="home-category-button"
+                type="button"
+            >
+                Categorías
+
+                <svg
+                    class="category-arrow"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path
+                        d="m7 9 5 5 5-5"
+                    ></path>
+                </svg>
+            </button>
+
+        </nav>
+
+        <!-- =====================================================
+             CONTENIDO PRINCIPAL DESTACADO
+             ===================================================== -->
+
+        <section
+            class="featured-card"
+            id="featured-card"
+            style="
+                --featured-image:
+                    url('https://image.tmdb.org/t/p/w1280/mez2Z3WqlPKNXpi7mWoiiE5guE9.jpg');
+            "
+        >
+
+            <div class="featured-gradient"></div>
+
+            <div class="featured-content">
+
+                <h2
+                    class="featured-title"
+                    id="featured-title"
+                >
+                    La Asistenta
+                </h2>
+
+                <div class="featured-actions">
+
+                    <button
+                        class="featured-play-button"
+                        id="featured-play-button"
+                        type="button"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M8 5.5v13l11-6.5z"
+                            ></path>
+                        </svg>
+
+                        <span>
+                            Reproducir
+                        </span>
+                    </button>
+
+                    <button
+                        class="featured-list-button"
+                        id="featured-list-button"
+                        type="button"
+                    >
+                        <span class="featured-list-plus">
+                            +
+                        </span>
+
+                        <span>
+                            Mi lista
+                        </span>
+                    </button>
+
+                </div>
+
+                <p
+                    class="featured-description"
+                    id="featured-description"
+                >
+                    Millie es una joven que, tras perder su trabajo,
+                    acepta un puesto como sirvienta en una lujosa
+                    pero inquietante residencia.
+                </p>
+
+            </div>
+
+        </section>
+
+        <!-- =====================================================
+             CONTINUAR VIENDO
+             ===================================================== -->
+
+        <section class="content-section">
+
+            <div class="section-header">
+
+                <h2>
+                    Continuar viendo
+                </h2>
+
+            </div>
+
+            <div
+                class="content-row"
+                id="continue-watching-row"
+            >
+
+                <article class="content-card">
+
+                    <div class="content-poster-wrapper">
+
+                        <img
+                            class="content-poster"
+                            src="https://image.tmdb.org/t/p/w500/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg"
+                            alt="Contenido visto recientemente"
+                        >
+
+                        <div class="content-progress-track">
+                            <span
+                                class="content-progress-value"
+                                style="width: 42%;"
+                            ></span>
+                        </div>
+
+                    </div>
+
+                    <p class="content-card-title">
+                        Máquina de guerra
+                    </p>
+
+                </article>
+
+                <article class="content-card">
+
+                    <div class="content-poster-wrapper">
+
+                        <img
+                            class="content-poster"
+                            src="https://image.tmdb.org/t/p/w500/q719jXXEzOoYaps6babgKnONONX.jpg"
+                            alt="Contenido visto recientemente"
+                        >
+
+                        <div class="content-progress-track">
+                            <span
+                                class="content-progress-value"
+                                style="width: 31%;"
+                            ></span>
+                        </div>
+
+                    </div>
+
+                    <p class="content-card-title">
+                        Cómo entrenar a tu dragón
+                    </p>
+
+                </article>
+
+                <article class="content-card">
+
+                    <div class="content-poster-wrapper">
+
+                        <img
+                            class="content-poster"
+                            src="https://image.tmdb.org/t/p/w500/8QVDXDiOGHRcAD4oM6MXjE0osSj.jpg"
+                            alt="Contenido visto recientemente"
+                        >
+
+                        <div class="content-progress-track">
+                            <span
+                                class="content-progress-value"
+                                style="width: 67%;"
+                            ></span>
+                        </div>
+
+                    </div>
+
+                    <p class="content-card-title">
+                        T1:E1 - Pase a despacho
+                    </p>
+
+                </article>
+
+            </div>
+
+        </section>
+
+        <!-- =====================================================
+             SERIES
+             ===================================================== -->
+
+        <section class="content-section">
+
+            <div class="section-header">
+
+                <h2>
+                    Series
+                </h2>
+
+            </div>
+
+            <div class="content-row">
+
+                <article class="content-card">
+
+                    <div class="content-poster-wrapper">
+
+                        <img
+                            class="content-poster"
+                            src="https://image.tmdb.org/t/p/w500/6kbAMLteGO8yyewYau6bJ683sw7.jpg"
+                            alt="Serie destacada"
+                        >
+
+                    </div>
+
+                    <p class="content-card-title">
+                        Serie destacada
+                    </p>
+
+                </article>
+
+                <article class="content-card">
+
+                    <div class="content-poster-wrapper">
+
+                        <img
+                            class="content-poster"
+                            src="https://image.tmdb.org/t/p/w500/7QMsOTMUswlwxJP0rTTZfmz2tX2.jpg"
+                            alt="Serie destacada"
+                        >
+
+                    </div>
+
+                    <p class="content-card-title">
+                        Drama
+                    </p>
+
+                </article>
+
+                <article class="content-card">
+
+                    <div class="content-poster-wrapper">
+
+                        <img
+                            class="content-poster"
+                            src="https://image.tmdb.org/t/p/w500/1XS1oqL89opfnbLl8WnZY1O1uJx.jpg"
+                            alt="Serie destacada"
+                        >
+
+                    </div>
+
+                    <p class="content-card-title">
+                        Acción
+                    </p>
+
+                </article>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- =========================================================
+         NAVEGACIÓN INFERIOR
+         ========================================================= -->
+
+    <nav
+        class="bottom-navigation"
+        aria-label="Navegación principal"
+    >
+
+        <a
+            class="bottom-nav-item active"
+            href="home.html"
+            aria-label="Inicio"
+        >
+
+            <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+            >
+                <path
+                    d="m3 11 9-8 9 8"
+                ></path>
+
+                <path
+                    d="M5 10v10h14V10"
+                ></path>
+            </svg>
+
+            <span>
+                Inicio
+            </span>
+
+        </a>
+
+        <a
+            class="bottom-nav-item"
+            href="#"
+            aria-label="Nuevo y popular"
+        >
+
+            <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+            >
+                <path
+                    d="M5 4v16"
+                ></path>
+
+                <path
+                    d="M10 4v16"
+                ></path>
+
+                <path
+                    d="m15 4 4 16"
+                ></path>
+            </svg>
+
+            <span>
+                Nuevo y popular
+            </span>
+
+        </a>
+
+        <a
+            class="bottom-nav-item"
+            href="#"
+            aria-label="Canales"
+        >
+
+            <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+            >
+                <rect
+                    x="3"
+                    y="6"
+                    width="18"
+                    height="14"
+                    rx="2"
+                ></rect>
+
+                <path
+                    d="m8 2 4 4 4-4"
+                ></path>
+            </svg>
+
+            <span>
+                Canales
+            </span>
+
+        </a>
+
+        <a
+            class="bottom-nav-item"
+            href="#"
+            aria-label="Mi VeiCloud"
+        >
+
+            <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+            >
+                <circle
+                    cx="12"
+                    cy="8"
+                    r="3"
+                ></circle>
+
+                <path
+                    d="M5 21a7 7 0 0 1 14 0"
+                ></path>
+            </svg>
+
+            <span>
+                Mi VeiCloud
+            </span>
+
+        </a>
+
+    </nav>
+
+</body>
+</html>
