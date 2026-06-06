@@ -1,7 +1,11 @@
 const express = require("express");
 const path = require("path");
 
-const app = express();
+const registerCatalogRoutes =
+    require("./catalog-routes");
+
+const app =
+    express();
 
 const PORT =
     process.env.PORT ||
@@ -50,12 +54,13 @@ const REFRESH_TOKEN_COOKIE_DURATION_SECONDS =
     30 * 24 * 60 * 60;
 
 /*
- * Permite recibir JSON desde login.js.
+ * Permite recibir datos JSON desde el navegador.
  */
 app.use(
     express.json(
         {
-            limit: "16kb"
+            limit:
+                "16kb"
         }
     )
 );
@@ -64,6 +69,13 @@ app.use(
  * =========================================================
  * BLOQUEO DE ARCHIVOS INTERNOS
  * =========================================================
+ *
+ * Evita que cualquier persona pueda abrir desde el navegador:
+ *
+ * /server.js
+ * /catalog-routes.js
+ * /package.json
+ * /.env
  */
 
 app.use(
@@ -74,15 +86,19 @@ app.use(
     ) => {
         const blockedPaths = [
             "/server.js",
+            "/catalog-routes.js",
             "/package.json",
             "/package-lock.json",
             "/node_modules",
-            "/.git"
+            "/.git",
+            "/.env"
         ];
 
         const isBlocked =
             blockedPaths.some(
-                (blockedPath) =>
+                (
+                    blockedPath
+                ) =>
                     request.path ===
                         blockedPath ||
                     request.path.startsWith(
@@ -90,9 +106,13 @@ app.use(
                     )
             );
 
-        if (isBlocked) {
+        if (
+            isBlocked
+        ) {
             response
-                .status(404)
+                .status(
+                    404
+                )
                 .end();
 
             return;
@@ -111,24 +131,32 @@ app.use(
 function parseCookies(
     cookieHeader
 ) {
-    if (!cookieHeader) {
+    if (
+        !cookieHeader
+    ) {
         return {};
     }
 
     return cookieHeader
         .split(";")
         .map(
-            (part) =>
+            (
+                part
+            ) =>
                 part.trim()
         )
-        .filter(Boolean)
+        .filter(
+            Boolean
+        )
         .reduce(
             (
                 cookies,
                 part
             ) => {
                 const separatorIndex =
-                    part.indexOf("=");
+                    part.indexOf(
+                        "="
+                    );
 
                 if (
                     separatorIndex ===
@@ -150,12 +178,16 @@ function parseCookies(
                     );
 
                 try {
-                    cookies[name] =
+                    cookies[
+                        name
+                    ] =
                         decodeURIComponent(
                             rawValue
                         );
                 } catch {
-                    cookies[name] =
+                    cookies[
+                        name
+                    ] =
                         rawValue;
                 }
 
@@ -177,7 +209,9 @@ function createSecureCookie(
         "SameSite=Lax",
         "Path=/",
         `Max-Age=${maxAgeSeconds}`
-    ].join("; ");
+    ].join(
+        "; "
+    );
 }
 
 function createExpiredCookie(
@@ -190,7 +224,9 @@ function createExpiredCookie(
         "SameSite=Lax",
         "Path=/",
         "Max-Age=0"
-    ].join("; ");
+    ].join(
+        "; "
+    );
 }
 
 function setSessionCookies(
@@ -291,7 +327,9 @@ function getReadableFirebaseAuthError(
     };
 
     return (
-        knownErrors[firebaseErrorCode] ||
+        knownErrors[
+            firebaseErrorCode
+        ] ||
         "No fue posible iniciar sesión. Revisa tus datos."
     );
 }
@@ -299,20 +337,21 @@ function getReadableFirebaseAuthError(
 function parseBoolean(
     value
 ) {
-    if (
-        value === true ||
-        value === "true" ||
-        value === 1 ||
-        value === "1"
-    ) {
-        return true;
-    }
-
-    return false;
+    return (
+        value ===
+            true ||
+        value ===
+            "true" ||
+        value ===
+            1 ||
+        value ===
+            "1"
+    );
 }
 
 /*
- * Comprueba que el token pertenece a una cuenta válida.
+ * Comprueba que el ID token pertenezca
+ * realmente a una cuenta válida.
  */
 async function lookupFirebaseAccount(
     idToken
@@ -391,7 +430,8 @@ async function lookupFirebaseAccount(
 }
 
 /*
- * Renueva automáticamente el token cuando caduca.
+ * Renueva automáticamente la sesión
+ * cuando el ID token anterior caduca.
  */
 async function refreshFirebaseSession(
     refreshToken
@@ -478,8 +518,10 @@ async function refreshFirebaseSession(
 }
 
 /*
- * Obtiene la sesión actual.
- * Si el token venció, intenta renovarlo.
+ * Recupera la sesión actual del usuario.
+ *
+ * Primero intenta usar el token existente.
+ * Si ya venció, lo renueva automáticamente.
  */
 async function getAuthenticatedFirebaseSession(
     request,
@@ -596,7 +638,8 @@ app.post(
         try {
             const email =
                 String(
-                    request.body?.email ||
+                    request.body
+                        ?.email ||
                     ""
                 )
                     .trim()
@@ -604,7 +647,8 @@ app.post(
 
             const password =
                 String(
-                    request.body?.password ||
+                    request.body
+                        ?.password ||
                     ""
                 );
 
@@ -613,7 +657,9 @@ app.post(
                 !password
             ) {
                 response
-                    .status(400)
+                    .status(
+                        400
+                    )
                     .json(
                         {
                             ok:
@@ -634,7 +680,9 @@ app.post(
                     256
             ) {
                 response
-                    .status(400)
+                    .status(
+                        400
+                    )
                     .json(
                         {
                             ok:
@@ -674,6 +722,7 @@ app.post(
                             JSON.stringify(
                                 {
                                     email,
+
                                     password,
 
                                     returnSecureToken:
@@ -742,7 +791,9 @@ app.post(
             );
 
             response
-                .status(200)
+                .status(
+                    200
+                )
                 .json(
                     {
                         ok:
@@ -764,7 +815,9 @@ app.post(
             );
 
             response
-                .status(500)
+                .status(
+                    500
+                )
                 .json(
                     {
                         ok:
@@ -831,7 +884,9 @@ app.get(
                 !session
             ) {
                 response
-                    .status(401)
+                    .status(
+                        401
+                    )
                     .json(
                         {
                             ok:
@@ -883,7 +938,9 @@ app.get(
                 );
 
                 response
-                    .status(403)
+                    .status(
+                        403
+                    )
                     .json(
                         {
                             ok:
@@ -930,7 +987,9 @@ app.get(
             );
 
             response
-                .status(500)
+                .status(
+                    500
+                )
                 .json(
                     {
                         ok:
@@ -945,11 +1004,10 @@ app.get(
 );
 
 /*
- * Convierte los perfiles guardados en Firebase.
+ * Convierte perfiles guardados en Firebase
+ * en datos limpios para la web.
  *
- * Importante:
- * cualquier nodo sin nombre real será descartado.
- * Así evitamos perfiles fantasmas llamados "Perfil".
+ * Los nodos incompletos sin nombre se descartan.
  */
 function normalizeProfiles(
     rawProfiles
@@ -972,7 +1030,10 @@ function normalizeProfiles(
                         profile,
                         index
                     ) => [
-                        String(index),
+                        String(
+                            index
+                        ),
+
                         profile
                     ]
                 )
@@ -1004,11 +1065,6 @@ function normalizeProfiles(
                     )
                         .trim();
 
-                /*
-                 * No inventamos nombres.
-                 * Si el nodo no tiene un nombre real,
-                 * no debe aparecer en la interfaz.
-                 */
                 if (
                     !profileName
                 ) {
@@ -1050,6 +1106,30 @@ function normalizeProfiles(
 
 /*
  * =========================================================
+ * CATÁLOGO REAL DE FIREBASE
+ * =========================================================
+ *
+ * Registra:
+ *
+ * GET /api/catalog
+ *
+ * La lógica completa vive dentro de:
+ *
+ * catalog-routes.js
+ */
+
+registerCatalogRoutes(
+    {
+        app,
+
+        getAuthenticatedFirebaseSession,
+
+        getFirebaseDatabaseBaseUrl
+    }
+);
+
+/*
+ * =========================================================
  * TMDB
  * =========================================================
  */
@@ -1066,7 +1146,9 @@ function shuffleItems(
     items
 ) {
     const shuffled =
-        [...items];
+        [
+            ...items
+        ];
 
     for (
         let index =
@@ -1087,11 +1169,19 @@ function shuffleItems(
             );
 
         [
-            shuffled[index],
-            shuffled[randomIndex]
+            shuffled[
+                index
+            ],
+            shuffled[
+                randomIndex
+            ]
         ] = [
-            shuffled[randomIndex],
-            shuffled[index]
+            shuffled[
+                randomIndex
+            ],
+            shuffled[
+                index
+            ]
         ];
     }
 
@@ -1129,12 +1219,16 @@ async function loadTrendingBackdrops() {
         Date.now();
 
     if (
-        backdropCache.items.length >
+        backdropCache
+            .items
+            .length >
             0 &&
-        backdropCache.expiresAt >
+        backdropCache
+            .expiresAt >
             now
     ) {
-        return backdropCache.items;
+        return backdropCache
+            .items;
     }
 
     if (
@@ -1158,7 +1252,7 @@ async function loadTrendingBackdrops() {
                     "GET",
 
                 headers: {
-                    accept:
+                    Accept:
                         "application/json",
 
                     Authorization:
@@ -1182,7 +1276,8 @@ async function loadTrendingBackdrops() {
         new Set();
 
     const normalizedItems =
-        tmdbData.results
+        tmdbData
+            .results
             .filter(
                 (
                     item
@@ -1288,12 +1383,13 @@ app.get(
             const selectedItems =
                 shuffleItems(
                     filteredItems
-                ).slice(
-                    0,
-                    limit
-                );
+                )
+                    .slice(
+                        0,
+                        limit
+                    );
 
-            response.set(
+            response.setHeader(
                 "Cache-Control",
                 "public, max-age=300"
             );
@@ -1319,7 +1415,9 @@ app.get(
             );
 
             response
-                .status(500)
+                .status(
+                    500
+                )
                 .json(
                     {
                         error:
@@ -1383,6 +1481,10 @@ app.listen(
             FIREBASE_DATABASE_URL
                 ? "Firebase Database URL configurada."
                 : "Aviso: falta configurar FIREBASE_DATABASE_URL."
+        );
+
+        console.log(
+            "Catálogo Firebase conectado en /api/catalog."
         );
     }
 );
