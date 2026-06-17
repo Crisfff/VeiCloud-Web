@@ -1,5 +1,6 @@
 const express = require("express");
 const path = require("path");
+const nodemailer = require("nodemailer");
 
 const registerCatalogRoutes =
     require("./catalog-routes");
@@ -25,6 +26,25 @@ const FIREBASE_WEB_API_KEY =
 
 const FIREBASE_DATABASE_URL =
     process.env.FIREBASE_DATABASE_URL;
+
+const EMAIL_USER =
+    process.env.EMAIL_USER;
+
+const EMAIL_PASS =
+    process.env.EMAIL_PASS;
+
+const EMAIL_FROM =
+    process.env.EMAIL_FROM ||
+    `VeiCloud <${EMAIL_USER}>`;
+
+const LOGIN_CODE_DURATION_MS =
+    5 * 60 * 1000;
+
+const LOGIN_CODE_MAX_ATTEMPTS =
+    5;
+
+const loginCodesByUid =
+    new Map();
 
 /*
  * =========================================================
@@ -54,7 +74,7 @@ const REFRESH_TOKEN_COOKIE_DURATION_SECONDS =
     30 * 24 * 60 * 60;
 
 /*
- * Permite recibir datos JSON desde el navegador.
+ * Permite recibir datos JSON desde el navegador y desde Android.
  */
 app.use(
     express.json(
@@ -69,13 +89,6 @@ app.use(
  * =========================================================
  * BLOQUEO DE ARCHIVOS INTERNOS
  * =========================================================
- *
- * Evita que cualquier persona pueda abrir desde el navegador:
- *
- * /server.js
- * /catalog-routes.js
- * /package.json
- * /.env
  */
 
 app.use(
@@ -350,8 +363,141 @@ function parseBoolean(
 }
 
 /*
- * Comprueba que el ID token pertenezca
- * realmente a una cuenta válida.
+ * =========================================================
+ * UTILIDADES PARA CORREO Y CÓDIGO
+ * =========================================================
+ */
+
+function requireEmailConfiguration() {
+    if (
+        !EMAIL_USER ||
+        !EMAIL_PASS
+    ) {
+        throw new Error(
+            "Falta configurar EMAIL_USER y EMAIL_PASS en Render."
+        );
+    }
+}
+
+function createEmailTransporter() {
+    requireEmailConfiguration();
+
+    return nodemailer.createTransport(
+        {
+            service:
+                "gmail",
+
+            auth: {
+                user:
+                    EMAIL_USER,
+
+                pass:
+                    EMAIL_PASS
+            }
+        }
+    );
+}
+
+function generateFourDigitCode() {
+    return String(
+        Math.floor(
+            1000 +
+            Math.random() *
+            9000
+        )
+    );
+}
+
+function maskEmail(
+    email
+) {
+    const cleanEmail =
+        String(
+            email ||
+            ""
+        ).trim();
+
+    const [
+        name,
+        domain
+    ] =
+        cleanEmail.split("@");
+
+    if (
+        !name ||
+        !domain
+    ) {
+        return cleanEmail;
+    }
+
+    const visibleStart =
+        name.slice(
+            0,
+            2
+        );
+
+    return `${visibleStart}***@${domain}`;
+}
+
+function createLoginCodeEmailHtml(
+    code
+) {
+    return `
+        <div style="background:#050507;padding:28px;font-family:Arial,sans-serif;color:#ffffff;">
+            <div style="max-width:520px;margin:0 auto;background:#111116;border-radius:22px;padding:28px;">
+                <h1 style="margin:0 0 12px;font-size:28px;font-weight:900;color:#ffffff;">
+                    VeiCloud
+                </h1>
+
+                <p style="color:#b8b8c2;font-size:15px;line-height:22px;margin:0;">
+                    Tu código de verificación para iniciar sesión es:
+                </p>
+
+                <div style="margin:24px 0;padding:20px;border-radius:18px;background:#191920;text-align:center;">
+                    <span style="font-size:42px;font-weight:900;letter-spacing:10px;color:#E50914;">
+                        ${code}
+                    </span>
+                </div>
+
+                <p style="color:#b8b8c2;font-size:14px;line-height:22px;margin:0;">
+                    Este código vence en 5 minutos. Si no fuiste tú, ignora este correo.
+                </p>
+            </div>
+        </div>
+    `;
+}
+
+async function sendLoginCodeEmail(
+    email,
+    code
+) {
+    const transporter =
+        createEmailTransporter();
+
+    await transporter.sendMail(
+        {
+            from:
+                EMAIL_FROM,
+
+            to:
+                email,
+
+            subject:
+                "Tu código de acceso a VeiCloud",
+
+            text:
+                `Tu código de acceso a VeiCloud es: ${code}. Vence en 5 minutos.`,
+
+            html:
+                createLoginCodeEmailHtml(
+                    code
+                )
+        }
+    );
+}
+
+/*
+ * Comprueba que el ID token pertenezca realmente a una cuenta válida.
  */
 async function lookupFirebaseAccount(
     idToken
@@ -430,8 +576,7 @@ async function lookupFirebaseAccount(
 }
 
 /*
- * Renueva automáticamente la sesión
- * cuando el ID token anterior caduca.
+ * Renueva automáticamente la sesión cuando el ID token anterior caduca.
  */
 async function refreshFirebaseSession(
     refreshToken
@@ -519,9 +664,6 @@ async function refreshFirebaseSession(
 
 /*
  * Recupera la sesión actual del usuario.
- *
- * Primero intenta usar el token existente.
- * Si ya venció, lo renueva automáticamente.
  */
 async function getAuthenticatedFirebaseSession(
     request,
@@ -625,7 +767,385 @@ async function getAuthenticatedFirebaseSession(
 
 /*
  * =========================================================
- * INICIAR SESIÓN
+ * CÓDIGO DE 4 DÍGITOS PARA ANDROID
+ * =========================================================
+ */
+
+app.post(
+    "/api/send-login-code",
+    async (
+        request,
+        response
+    ) => {
+        try {
+            const idToken =
+                String(
+                    request.body
+                        ?.idToken ||
+                    ""
+                ).trim();
+
+            if (
+                !idToken
+            ) {
+                response
+                    .status(
+                        401
+                    )
+                    .json(
+                        {
+                            ok:
+                                false,
+
+                            message:
+                                "Sesión no válida. Inicia sesión nuevamente."
+                        }
+                    );
+
+                return;
+            }
+
+            const account =
+                await lookupFirebaseAccount(
+                    idToken
+                );
+
+            if (
+                !account ||
+                !account.uid ||
+                !account.email
+            ) {
+                response
+                    .status(
+                        401
+                    )
+                    .json(
+                        {
+                            ok:
+                                false,
+
+                            message:
+                                "No se pudo verificar tu cuenta."
+                        }
+                    );
+
+                return;
+            }
+
+            const code =
+                generateFourDigitCode();
+
+            const now =
+                Date.now();
+
+            loginCodesByUid.set(
+                account.uid,
+                {
+                    code,
+                    email:
+                        account.email,
+                    createdAt:
+                        now,
+                    expiresAt:
+                        now +
+                        LOGIN_CODE_DURATION_MS,
+                    attempts:
+                        0
+                }
+            );
+
+            await sendLoginCodeEmail(
+                account.email,
+                code
+            );
+
+            response.setHeader(
+                "Cache-Control",
+                "no-store"
+            );
+
+            response.json(
+                {
+                    ok:
+                        true,
+
+                    message:
+                        "Código enviado correctamente.",
+
+                    email:
+                        maskEmail(
+                            account.email
+                        )
+                }
+            );
+        } catch (
+            error
+        ) {
+            console.error(
+                "Error enviando código de inicio de sesión:",
+                error.message
+            );
+
+            response
+                .status(
+                    500
+                )
+                .json(
+                    {
+                        ok:
+                            false,
+
+                        message:
+                            "No se pudo enviar el código. Revisa la configuración del correo."
+                    }
+                );
+        }
+    }
+);
+
+app.post(
+    "/api/verify-login-code",
+    async (
+        request,
+        response
+    ) => {
+        try {
+            const idToken =
+                String(
+                    request.body
+                        ?.idToken ||
+                    ""
+                ).trim();
+
+            const code =
+                String(
+                    request.body
+                        ?.code ||
+                    ""
+                )
+                    .trim()
+                    .replace(
+                        /\D/g,
+                        ""
+                    );
+
+            if (
+                !idToken
+            ) {
+                response
+                    .status(
+                        401
+                    )
+                    .json(
+                        {
+                            ok:
+                                false,
+
+                            message:
+                                "Sesión no válida. Inicia sesión nuevamente."
+                        }
+                    );
+
+                return;
+            }
+
+            if (
+                code.length !==
+                4
+            ) {
+                response
+                    .status(
+                        400
+                    )
+                    .json(
+                        {
+                            ok:
+                                false,
+
+                            message:
+                                "Escribe el código de 4 dígitos."
+                        }
+                    );
+
+                return;
+            }
+
+            const account =
+                await lookupFirebaseAccount(
+                    idToken
+                );
+
+            if (
+                !account ||
+                !account.uid
+            ) {
+                response
+                    .status(
+                        401
+                    )
+                    .json(
+                        {
+                            ok:
+                                false,
+
+                            message:
+                                "No se pudo verificar tu cuenta."
+                        }
+                    );
+
+                return;
+            }
+
+            const savedCodeData =
+                loginCodesByUid.get(
+                    account.uid
+                );
+
+            if (
+                !savedCodeData
+            ) {
+                response
+                    .status(
+                        404
+                    )
+                    .json(
+                        {
+                            ok:
+                                false,
+
+                            message:
+                                "No hay código activo. Solicita uno nuevo."
+                        }
+                    );
+
+                return;
+            }
+
+            if (
+                savedCodeData.expiresAt <
+                Date.now()
+            ) {
+                loginCodesByUid.delete(
+                    account.uid
+                );
+
+                response
+                    .status(
+                        410
+                    )
+                    .json(
+                        {
+                            ok:
+                                false,
+
+                            message:
+                                "El código venció. Solicita uno nuevo."
+                        }
+                    );
+
+                return;
+            }
+
+            if (
+                savedCodeData.attempts >=
+                LOGIN_CODE_MAX_ATTEMPTS
+            ) {
+                loginCodesByUid.delete(
+                    account.uid
+                );
+
+                response
+                    .status(
+                        429
+                    )
+                    .json(
+                        {
+                            ok:
+                                false,
+
+                            message:
+                                "Demasiados intentos. Solicita un código nuevo."
+                        }
+                    );
+
+                return;
+            }
+
+            if (
+                savedCodeData.code !==
+                code
+            ) {
+                savedCodeData.attempts +=
+                    1;
+
+                loginCodesByUid.set(
+                    account.uid,
+                    savedCodeData
+                );
+
+                response
+                    .status(
+                        400
+                    )
+                    .json(
+                        {
+                            ok:
+                                false,
+
+                            message:
+                                "Código incorrecto."
+                        }
+                    );
+
+                return;
+            }
+
+            loginCodesByUid.delete(
+                account.uid
+            );
+
+            response.setHeader(
+                "Cache-Control",
+                "no-store"
+            );
+
+            response.json(
+                {
+                    ok:
+                        true,
+
+                    message:
+                        "Código verificado correctamente."
+                }
+            );
+        } catch (
+            error
+        ) {
+            console.error(
+                "Error verificando código de inicio de sesión:",
+                error.message
+            );
+
+            response
+                .status(
+                    500
+                )
+                .json(
+                    {
+                        ok:
+                            false,
+
+                        message:
+                            "No se pudo verificar el código."
+                    }
+                );
+        }
+    }
+);
+
+/*
+ * =========================================================
+ * INICIAR SESIÓN WEB
  * =========================================================
  */
 
@@ -722,9 +1242,7 @@ app.post(
                             JSON.stringify(
                                 {
                                     email,
-
                                     password,
-
                                     returnSecureToken:
                                         true
                                 }
@@ -1004,10 +1522,7 @@ app.get(
 );
 
 /*
- * Convierte perfiles guardados en Firebase
- * en datos limpios para la web.
- *
- * Los nodos incompletos sin nombre se descartan.
+ * Convierte perfiles guardados en Firebase en datos limpios para la web.
  */
 function normalizeProfiles(
     rawProfiles
@@ -1108,14 +1623,6 @@ function normalizeProfiles(
  * =========================================================
  * CATÁLOGO REAL DE FIREBASE
  * =========================================================
- *
- * Registra:
- *
- * GET /api/catalog
- *
- * La lógica completa vive dentro de:
- *
- * catalog-routes.js
  */
 
 registerCatalogRoutes(
@@ -1481,6 +1988,12 @@ app.listen(
             FIREBASE_DATABASE_URL
                 ? "Firebase Database URL configurada."
                 : "Aviso: falta configurar FIREBASE_DATABASE_URL."
+        );
+
+        console.log(
+            EMAIL_USER
+                ? "Correo de verificación configurado."
+                : "Aviso: falta configurar EMAIL_USER."
         );
 
         console.log(
