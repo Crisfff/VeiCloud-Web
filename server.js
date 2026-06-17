@@ -2,15 +2,11 @@ const express = require("express");
 const path = require("path");
 const nodemailer = require("nodemailer");
 
-const registerCatalogRoutes =
-    require("./catalog-routes");
+const registerCatalogRoutes = require("./catalog-routes");
 
-const app =
-    express();
+const app = express();
 
-const PORT =
-    process.env.PORT ||
-    3000;
+const PORT = process.env.PORT || 3000;
 
 /*
  * =========================================================
@@ -18,33 +14,27 @@ const PORT =
  * =========================================================
  */
 
-const TMDB_TOKEN =
-    process.env.TMDB_TOKEN;
+const TMDB_TOKEN = process.env.TMDB_TOKEN;
 
-const FIREBASE_WEB_API_KEY =
-    process.env.FIREBASE_WEB_API_KEY;
+const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY;
 
-const FIREBASE_DATABASE_URL =
-    process.env.FIREBASE_DATABASE_URL;
+const FIREBASE_DATABASE_URL = process.env.FIREBASE_DATABASE_URL;
 
-const EMAIL_USER =
-    process.env.EMAIL_USER;
+const EMAIL_USER = process.env.EMAIL_USER;
 
-const EMAIL_PASS =
-    process.env.EMAIL_PASS;
+const EMAIL_PASS = process.env.EMAIL_PASS
+    ? String(process.env.EMAIL_PASS).replace(/\s/g, "")
+    : "";
 
 const EMAIL_FROM =
     process.env.EMAIL_FROM ||
     `VeiCloud <${EMAIL_USER}>`;
 
-const LOGIN_CODE_DURATION_MS =
-    5 * 60 * 1000;
+const LOGIN_CODE_DURATION_MS = 5 * 60 * 1000;
 
-const LOGIN_CODE_MAX_ATTEMPTS =
-    5;
+const LOGIN_CODE_MAX_ATTEMPTS = 5;
 
-const loginCodesByUid =
-    new Map();
+const loginCodesByUid = new Map();
 
 /*
  * =========================================================
@@ -52,35 +42,24 @@ const loginCodesByUid =
  * =========================================================
  */
 
-const TMDB_API_BASE_URL =
-    "https://api.themoviedb.org/3";
+const TMDB_API_BASE_URL = "https://api.themoviedb.org/3";
 
-const TMDB_IMAGE_BASE_URL =
-    "https://image.tmdb.org/t/p/w1280";
+const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w1280";
 
-const TMDB_CACHE_DURATION_MS =
-    15 * 60 * 1000;
+const TMDB_CACHE_DURATION_MS = 15 * 60 * 1000;
 
-const ID_TOKEN_COOKIE_NAME =
-    "veicloud_id_token";
+const ID_TOKEN_COOKIE_NAME = "veicloud_id_token";
 
-const REFRESH_TOKEN_COOKIE_NAME =
-    "veicloud_refresh_token";
+const REFRESH_TOKEN_COOKIE_NAME = "veicloud_refresh_token";
 
-const ID_TOKEN_COOKIE_DURATION_SECONDS =
-    60 * 60;
+const ID_TOKEN_COOKIE_DURATION_SECONDS = 60 * 60;
 
-const REFRESH_TOKEN_COOKIE_DURATION_SECONDS =
-    30 * 24 * 60 * 60;
+const REFRESH_TOKEN_COOKIE_DURATION_SECONDS = 30 * 24 * 60 * 60;
 
-/*
- * Permite recibir datos JSON desde el navegador y desde Android.
- */
 app.use(
     express.json(
         {
-            limit:
-                "16kb"
+            limit: "16kb"
         }
     )
 );
@@ -107,27 +86,16 @@ app.use(
             "/.env"
         ];
 
-        const isBlocked =
-            blockedPaths.some(
-                (
-                    blockedPath
-                ) =>
-                    request.path ===
-                        blockedPath ||
-                    request.path.startsWith(
-                        `${blockedPath}/`
-                    )
-            );
+        const isBlocked = blockedPaths.some(
+            (
+                blockedPath
+            ) =>
+                request.path === blockedPath ||
+                request.path.startsWith(`${blockedPath}/`)
+        );
 
-        if (
-            isBlocked
-        ) {
-            response
-                .status(
-                    404
-                )
-                .end();
-
+        if (isBlocked) {
+            response.status(404).end();
             return;
         }
 
@@ -137,16 +105,14 @@ app.use(
 
 /*
  * =========================================================
- * UTILIDADES PARA COOKIES
+ * COOKIES
  * =========================================================
  */
 
 function parseCookies(
     cookieHeader
 ) {
-    if (
-        !cookieHeader
-    ) {
+    if (!cookieHeader) {
         return {};
     }
 
@@ -155,53 +121,28 @@ function parseCookies(
         .map(
             (
                 part
-            ) =>
-                part.trim()
+            ) => part.trim()
         )
-        .filter(
-            Boolean
-        )
+        .filter(Boolean)
         .reduce(
             (
                 cookies,
                 part
             ) => {
-                const separatorIndex =
-                    part.indexOf(
-                        "="
-                    );
+                const separatorIndex = part.indexOf("=");
 
-                if (
-                    separatorIndex ===
-                    -1
-                ) {
+                if (separatorIndex === -1) {
                     return cookies;
                 }
 
-                const name =
-                    part.slice(
-                        0,
-                        separatorIndex
-                    );
+                const name = part.slice(0, separatorIndex);
 
-                const rawValue =
-                    part.slice(
-                        separatorIndex +
-                        1
-                    );
+                const rawValue = part.slice(separatorIndex + 1);
 
                 try {
-                    cookies[
-                        name
-                    ] =
-                        decodeURIComponent(
-                            rawValue
-                        );
+                    cookies[name] = decodeURIComponent(rawValue);
                 } catch {
-                    cookies[
-                        name
-                    ] =
-                        rawValue;
+                    cookies[name] = rawValue;
                 }
 
                 return cookies;
@@ -222,9 +163,7 @@ function createSecureCookie(
         "SameSite=Lax",
         "Path=/",
         `Max-Age=${maxAgeSeconds}`
-    ].join(
-        "; "
-    );
+    ].join("; ");
 }
 
 function createExpiredCookie(
@@ -237,9 +176,7 @@ function createExpiredCookie(
         "SameSite=Lax",
         "Path=/",
         "Max-Age=0"
-    ].join(
-        "; "
-    );
+    ].join("; ");
 }
 
 function setSessionCookies(
@@ -255,7 +192,6 @@ function setSessionCookies(
                 idToken,
                 ID_TOKEN_COOKIE_DURATION_SECONDS
             ),
-
             createSecureCookie(
                 REFRESH_TOKEN_COOKIE_NAME,
                 refreshToken,
@@ -271,49 +207,32 @@ function clearSessionCookies(
     response.setHeader(
         "Set-Cookie",
         [
-            createExpiredCookie(
-                ID_TOKEN_COOKIE_NAME
-            ),
-
-            createExpiredCookie(
-                REFRESH_TOKEN_COOKIE_NAME
-            )
+            createExpiredCookie(ID_TOKEN_COOKIE_NAME),
+            createExpiredCookie(REFRESH_TOKEN_COOKIE_NAME)
         ]
     );
 }
 
 /*
  * =========================================================
- * UTILIDADES PARA FIREBASE
+ * FIREBASE
  * =========================================================
  */
 
 function requireFirebaseConfiguration() {
-    if (
-        !FIREBASE_WEB_API_KEY
-    ) {
-        throw new Error(
-            "Falta configurar FIREBASE_WEB_API_KEY en Render."
-        );
+    if (!FIREBASE_WEB_API_KEY) {
+        throw new Error("Falta configurar FIREBASE_WEB_API_KEY en Render.");
     }
 
-    if (
-        !FIREBASE_DATABASE_URL
-    ) {
-        throw new Error(
-            "Falta configurar FIREBASE_DATABASE_URL en Render."
-        );
+    if (!FIREBASE_DATABASE_URL) {
+        throw new Error("Falta configurar FIREBASE_DATABASE_URL en Render.");
     }
 }
 
 function getFirebaseDatabaseBaseUrl() {
     requireFirebaseConfiguration();
 
-    return FIREBASE_DATABASE_URL
-        .replace(
-            /\/+$/,
-            ""
-        );
+    return FIREBASE_DATABASE_URL.replace(/\/+$/, "");
 }
 
 function getReadableFirebaseAuthError(
@@ -322,27 +241,20 @@ function getReadableFirebaseAuthError(
     const knownErrors = {
         EMAIL_NOT_FOUND:
             "No existe una cuenta vinculada a ese correo.",
-
         INVALID_PASSWORD:
             "La contraseña es incorrecta.",
-
         INVALID_LOGIN_CREDENTIALS:
             "El correo o la contraseña son incorrectos.",
-
         USER_DISABLED:
             "Esta cuenta se encuentra desactivada.",
-
         TOO_MANY_ATTEMPTS_TRY_LATER:
             "Demasiados intentos. Espera unos minutos antes de volver a intentarlo.",
-
         OPERATION_NOT_ALLOWED:
             "El inicio de sesión con contraseña no está habilitado."
     };
 
     return (
-        knownErrors[
-            firebaseErrorCode
-        ] ||
+        knownErrors[firebaseErrorCode] ||
         "No fue posible iniciar sesión. Revisa tus datos."
     );
 }
@@ -351,31 +263,26 @@ function parseBoolean(
     value
 ) {
     return (
-        value ===
-            true ||
-        value ===
-            "true" ||
-        value ===
-            1 ||
-        value ===
-            "1"
+        value === true ||
+        value === "true" ||
+        value === 1 ||
+        value === "1"
     );
 }
 
 /*
  * =========================================================
- * UTILIDADES PARA CORREO Y CÓDIGO
+ * CORREO Y CÓDIGO
  * =========================================================
  */
 
 function requireEmailConfiguration() {
-    if (
-        !EMAIL_USER ||
-        !EMAIL_PASS
-    ) {
-        throw new Error(
-            "Falta configurar EMAIL_USER y EMAIL_PASS en Render."
-        );
+    if (!EMAIL_USER || !EMAIL_PASS) {
+        throw new Error("Falta configurar EMAIL_USER y EMAIL_PASS en Render.");
+    }
+
+    if (!EMAIL_USER.includes("@")) {
+        throw new Error("EMAIL_USER no parece un correo válido.");
     }
 }
 
@@ -384,16 +291,18 @@ function createEmailTransporter() {
 
     return nodemailer.createTransport(
         {
-            service:
-                "gmail",
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true,
 
             auth: {
-                user:
-                    EMAIL_USER,
+                user: EMAIL_USER,
+                pass: EMAIL_PASS
+            },
 
-                pass:
-                    EMAIL_PASS
-            }
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 15000
         }
     );
 }
@@ -402,8 +311,7 @@ function generateFourDigitCode() {
     return String(
         Math.floor(
             1000 +
-            Math.random() *
-            9000
+            Math.random() * 9000
         )
     );
 }
@@ -411,32 +319,18 @@ function generateFourDigitCode() {
 function maskEmail(
     email
 ) {
-    const cleanEmail =
-        String(
-            email ||
-            ""
-        ).trim();
+    const cleanEmail = String(email || "").trim();
 
     const [
         name,
         domain
-    ] =
-        cleanEmail.split("@");
+    ] = cleanEmail.split("@");
 
-    if (
-        !name ||
-        !domain
-    ) {
+    if (!name || !domain) {
         return cleanEmail;
     }
 
-    const visibleStart =
-        name.slice(
-            0,
-            2
-        );
-
-    return `${visibleStart}***@${domain}`;
+    return `${name.slice(0, 2)}***@${domain}`;
 }
 
 function createLoginCodeEmailHtml(
@@ -471,49 +365,50 @@ async function sendLoginCodeEmail(
     email,
     code
 ) {
-    const transporter =
-        createEmailTransporter();
+    const transporter = createEmailTransporter();
 
-    await transporter.sendMail(
-        {
-            from:
-                EMAIL_FROM,
-
-            to:
-                email,
-
-            subject:
-                "Tu código de acceso a VeiCloud",
-
-            text:
-                `Tu código de acceso a VeiCloud es: ${code}. Vence en 5 minutos.`,
-
-            html:
-                createLoginCodeEmailHtml(
-                    code
-                )
-        }
+    console.log(
+        "Intentando enviar código a:",
+        email
     );
+
+    try {
+        const result = await transporter.sendMail(
+            {
+                from: EMAIL_FROM,
+                to: email,
+                subject: "Tu código de acceso a VeiCloud",
+                text: `Tu código de acceso a VeiCloud es: ${code}. Vence en 5 minutos.`,
+                html: createLoginCodeEmailHtml(code)
+            }
+        );
+
+        console.log(
+            "Correo enviado correctamente:",
+            result.messageId
+        );
+
+        return result;
+    } finally {
+        transporter.close();
+    }
 }
 
 /*
- * Comprueba que el ID token pertenezca realmente a una cuenta válida.
+ * =========================================================
+ * SESIÓN FIREBASE
+ * =========================================================
  */
+
 async function lookupFirebaseAccount(
     idToken
 ) {
-    if (
-        !idToken
-    ) {
+    if (!idToken) {
         return null;
     }
 
-    if (
-        !FIREBASE_WEB_API_KEY
-    ) {
-        throw new Error(
-            "Falta configurar FIREBASE_WEB_API_KEY en Render."
-        );
+    if (!FIREBASE_WEB_API_KEY) {
+        throw new Error("Falta configurar FIREBASE_WEB_API_KEY en Render.");
     }
 
     const lookupUrl =
@@ -521,78 +416,49 @@ async function lookupFirebaseAccount(
         "v1/accounts:lookup" +
         `?key=${encodeURIComponent(FIREBASE_WEB_API_KEY)}`;
 
-    const lookupResponse =
-        await fetch(
-            lookupUrl,
-            {
-                method:
-                    "POST",
+    const lookupResponse = await fetch(
+        lookupUrl,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json"
+            },
+            body: JSON.stringify(
+                {
+                    idToken
+                }
+            )
+        }
+    );
 
-                headers: {
-                    "Content-Type":
-                        "application/json",
-
-                    Accept:
-                        "application/json"
-                },
-
-                body:
-                    JSON.stringify(
-                        {
-                            idToken
-                        }
-                    )
-            }
-        );
-
-    if (
-        !lookupResponse.ok
-    ) {
+    if (!lookupResponse.ok) {
         return null;
     }
 
-    const lookupData =
-        await lookupResponse.json();
+    const lookupData = await lookupResponse.json();
 
-    const user =
-        lookupData
-            ?.users
-            ?.[0];
+    const user = lookupData?.users?.[0];
 
-    if (
-        !user?.localId
-    ) {
+    if (!user?.localId) {
         return null;
     }
 
     return {
-        uid:
-            user.localId,
-
-        email:
-            user.email ||
-            ""
+        uid: user.localId,
+        email: user.email || ""
     };
 }
 
-/*
- * Renueva automáticamente la sesión cuando el ID token anterior caduca.
- */
 async function refreshFirebaseSession(
     refreshToken
 ) {
-    if (
-        !refreshToken
-    ) {
+    if (!refreshToken) {
         return null;
     }
 
-    if (
-        !FIREBASE_WEB_API_KEY
-    ) {
-        throw new Error(
-            "Falta configurar FIREBASE_WEB_API_KEY en Render."
-        );
+    if (!FIREBASE_WEB_API_KEY) {
+        throw new Error("Falta configurar FIREBASE_WEB_API_KEY en Render.");
     }
 
     const refreshUrl =
@@ -600,8 +466,7 @@ async function refreshFirebaseSession(
         "v1/token" +
         `?key=${encodeURIComponent(FIREBASE_WEB_API_KEY)}`;
 
-    const formBody =
-        new URLSearchParams();
+    const formBody = new URLSearchParams();
 
     formBody.set(
         "grant_type",
@@ -613,34 +478,23 @@ async function refreshFirebaseSession(
         refreshToken
     );
 
-    const refreshResponse =
-        await fetch(
-            refreshUrl,
-            {
-                method:
-                    "POST",
+    const refreshResponse = await fetch(
+        refreshUrl,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                Accept: "application/json"
+            },
+            body: formBody.toString()
+        }
+    );
 
-                headers: {
-                    "Content-Type":
-                        "application/x-www-form-urlencoded",
-
-                    Accept:
-                        "application/json"
-                },
-
-                body:
-                    formBody.toString()
-            }
-        );
-
-    if (
-        !refreshResponse.ok
-    ) {
+    if (!refreshResponse.ok) {
         return null;
     }
 
-    const refreshData =
-        await refreshResponse.json();
+    const refreshData = await refreshResponse.json();
 
     if (
         !refreshData.id_token ||
@@ -651,96 +505,54 @@ async function refreshFirebaseSession(
     }
 
     return {
-        uid:
-            refreshData.user_id,
-
-        idToken:
-            refreshData.id_token,
-
-        refreshToken:
-            refreshData.refresh_token
+        uid: refreshData.user_id,
+        idToken: refreshData.id_token,
+        refreshToken: refreshData.refresh_token
     };
 }
 
-/*
- * Recupera la sesión actual del usuario.
- */
 async function getAuthenticatedFirebaseSession(
     request,
     response
 ) {
-    const cookies =
-        parseCookies(
-            request.headers.cookie
-        );
+    const cookies = parseCookies(
+        request.headers.cookie
+    );
 
-    const currentIdToken =
-        cookies[
-            ID_TOKEN_COOKIE_NAME
-        ];
+    const currentIdToken = cookies[ID_TOKEN_COOKIE_NAME];
 
-    const currentRefreshToken =
-        cookies[
-            REFRESH_TOKEN_COOKIE_NAME
-        ];
+    const currentRefreshToken = cookies[REFRESH_TOKEN_COOKIE_NAME];
 
-    if (
-        !currentIdToken &&
-        !currentRefreshToken
-    ) {
+    if (!currentIdToken && !currentRefreshToken) {
         return null;
     }
 
-    if (
-        currentIdToken
-    ) {
-        const firebaseAccount =
-            await lookupFirebaseAccount(
-                currentIdToken
-            );
+    if (currentIdToken) {
+        const firebaseAccount = await lookupFirebaseAccount(
+            currentIdToken
+        );
 
-        if (
-            firebaseAccount
-        ) {
+        if (firebaseAccount) {
             return {
-                uid:
-                    firebaseAccount.uid,
-
-                email:
-                    firebaseAccount.email,
-
-                idToken:
-                    currentIdToken,
-
-                refreshToken:
-                    currentRefreshToken ||
-                    ""
+                uid: firebaseAccount.uid,
+                email: firebaseAccount.email,
+                idToken: currentIdToken,
+                refreshToken: currentRefreshToken || ""
             };
         }
     }
 
-    if (
-        !currentRefreshToken
-    ) {
-        clearSessionCookies(
-            response
-        );
-
+    if (!currentRefreshToken) {
+        clearSessionCookies(response);
         return null;
     }
 
-    const renewedSession =
-        await refreshFirebaseSession(
-            currentRefreshToken
-        );
+    const renewedSession = await refreshFirebaseSession(
+        currentRefreshToken
+    );
 
-    if (
-        !renewedSession
-    ) {
-        clearSessionCookies(
-            response
-        );
-
+    if (!renewedSession) {
+        clearSessionCookies(response);
         return null;
     }
 
@@ -751,17 +563,10 @@ async function getAuthenticatedFirebaseSession(
     );
 
     return {
-        uid:
-            renewedSession.uid,
-
-        email:
-            "",
-
-        idToken:
-            renewedSession.idToken,
-
-        refreshToken:
-            renewedSession.refreshToken
+        uid: renewedSession.uid,
+        email: "",
+        idToken: renewedSession.idToken,
+        refreshToken: renewedSession.refreshToken
     };
 }
 
@@ -778,79 +583,52 @@ app.post(
         response
     ) => {
         try {
-            const idToken =
-                String(
-                    request.body
-                        ?.idToken ||
-                    ""
-                ).trim();
+            console.log(
+                "Solicitud recibida en /api/send-login-code"
+            );
 
-            if (
-                !idToken
-            ) {
-                response
-                    .status(
-                        401
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
+            const idToken = String(
+                request.body?.idToken || ""
+            ).trim();
 
-                            message:
-                                "Sesión no válida. Inicia sesión nuevamente."
-                        }
-                    );
-
-                return;
-            }
-
-            const account =
-                await lookupFirebaseAccount(
-                    idToken
+            if (!idToken) {
+                response.status(401).json(
+                    {
+                        ok: false,
+                        message: "Sesión no válida. Inicia sesión nuevamente."
+                    }
                 );
 
-            if (
-                !account ||
-                !account.uid ||
-                !account.email
-            ) {
-                response
-                    .status(
-                        401
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
+                return;
+            }
 
-                            message:
-                                "No se pudo verificar tu cuenta."
-                        }
-                    );
+            const account = await lookupFirebaseAccount(
+                idToken
+            );
+
+            if (!account || !account.uid || !account.email) {
+                response.status(401).json(
+                    {
+                        ok: false,
+                        message: "No se pudo verificar tu cuenta."
+                    }
+                );
 
                 return;
             }
 
-            const code =
-                generateFourDigitCode();
+            const code = generateFourDigitCode();
 
-            const now =
-                Date.now();
+            const now = Date.now();
 
             loginCodesByUid.set(
                 account.uid,
                 {
                     code,
-                    email:
-                        account.email,
-                    createdAt:
-                        now,
-                    expiresAt:
-                        now +
-                        LOGIN_CODE_DURATION_MS,
-                    attempts:
-                        0
+                    email: account.email,
+                    createdAt: now,
+                    expiresAt: now + LOGIN_CODE_DURATION_MS,
+                    attempts: 0
                 }
             );
 
@@ -866,16 +644,9 @@ app.post(
 
             response.json(
                 {
-                    ok:
-                        true,
-
-                    message:
-                        "Código enviado correctamente.",
-
-                    email:
-                        maskEmail(
-                            account.email
-                        )
+                    ok: true,
+                    message: "Código enviado correctamente.",
+                    email: maskEmail(account.email)
                 }
             );
         } catch (
@@ -883,22 +654,22 @@ app.post(
         ) {
             console.error(
                 "Error enviando código de inicio de sesión:",
-                error.message
+                {
+                    name: error.name,
+                    code: error.code,
+                    command: error.command,
+                    response: error.response,
+                    responseCode: error.responseCode,
+                    message: error.message
+                }
             );
 
-            response
-                .status(
-                    500
-                )
-                .json(
-                    {
-                        ok:
-                            false,
-
-                        message:
-                            "No se pudo enviar el código. Revisa la configuración del correo."
-                    }
-                );
+            response.status(500).json(
+                {
+                    ok: false,
+                    message: `No se pudo enviar el código. ${error.message || "Revisa la configuración del correo."}`
+                }
+            );
         }
     }
 );
@@ -910,192 +681,112 @@ app.post(
         response
     ) => {
         try {
-            const idToken =
-                String(
-                    request.body
-                        ?.idToken ||
-                    ""
-                ).trim();
+            const idToken = String(
+                request.body?.idToken || ""
+            ).trim();
 
-            const code =
-                String(
-                    request.body
-                        ?.code ||
-                    ""
-                )
-                    .trim()
-                    .replace(
-                        /\D/g,
-                        ""
-                    );
+            const code = String(
+                request.body?.code || ""
+            )
+                .trim()
+                .replace(/\D/g, "");
 
-            if (
-                !idToken
-            ) {
-                response
-                    .status(
-                        401
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
-
-                            message:
-                                "Sesión no válida. Inicia sesión nuevamente."
-                        }
-                    );
-
-                return;
-            }
-
-            if (
-                code.length !==
-                4
-            ) {
-                response
-                    .status(
-                        400
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
-
-                            message:
-                                "Escribe el código de 4 dígitos."
-                        }
-                    );
-
-                return;
-            }
-
-            const account =
-                await lookupFirebaseAccount(
-                    idToken
+            if (!idToken) {
+                response.status(401).json(
+                    {
+                        ok: false,
+                        message: "Sesión no válida. Inicia sesión nuevamente."
+                    }
                 );
 
-            if (
-                !account ||
-                !account.uid
-            ) {
-                response
-                    .status(
-                        401
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
-
-                            message:
-                                "No se pudo verificar tu cuenta."
-                        }
-                    );
-
                 return;
             }
 
-            const savedCodeData =
-                loginCodesByUid.get(
-                    account.uid
+            if (code.length !== 4) {
+                response.status(400).json(
+                    {
+                        ok: false,
+                        message: "Escribe el código de 4 dígitos."
+                    }
                 );
 
-            if (
-                !savedCodeData
-            ) {
-                response
-                    .status(
-                        404
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
+                return;
+            }
 
-                            message:
-                                "No hay código activo. Solicita uno nuevo."
-                        }
-                    );
+            const account = await lookupFirebaseAccount(
+                idToken
+            );
+
+            if (!account || !account.uid) {
+                response.status(401).json(
+                    {
+                        ok: false,
+                        message: "No se pudo verificar tu cuenta."
+                    }
+                );
 
                 return;
             }
 
-            if (
-                savedCodeData.expiresAt <
-                Date.now()
-            ) {
+            const savedCodeData = loginCodesByUid.get(
+                account.uid
+            );
+
+            if (!savedCodeData) {
+                response.status(404).json(
+                    {
+                        ok: false,
+                        message: "No hay código activo. Solicita uno nuevo."
+                    }
+                );
+
+                return;
+            }
+
+            if (savedCodeData.expiresAt < Date.now()) {
                 loginCodesByUid.delete(
                     account.uid
                 );
 
-                response
-                    .status(
-                        410
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
-
-                            message:
-                                "El código venció. Solicita uno nuevo."
-                        }
-                    );
+                response.status(410).json(
+                    {
+                        ok: false,
+                        message: "El código venció. Solicita uno nuevo."
+                    }
+                );
 
                 return;
             }
 
-            if (
-                savedCodeData.attempts >=
-                LOGIN_CODE_MAX_ATTEMPTS
-            ) {
+            if (savedCodeData.attempts >= LOGIN_CODE_MAX_ATTEMPTS) {
                 loginCodesByUid.delete(
                     account.uid
                 );
 
-                response
-                    .status(
-                        429
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
-
-                            message:
-                                "Demasiados intentos. Solicita un código nuevo."
-                        }
-                    );
+                response.status(429).json(
+                    {
+                        ok: false,
+                        message: "Demasiados intentos. Solicita un código nuevo."
+                    }
+                );
 
                 return;
             }
 
-            if (
-                savedCodeData.code !==
-                code
-            ) {
-                savedCodeData.attempts +=
-                    1;
+            if (savedCodeData.code !== code) {
+                savedCodeData.attempts += 1;
 
                 loginCodesByUid.set(
                     account.uid,
                     savedCodeData
                 );
 
-                response
-                    .status(
-                        400
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
-
-                            message:
-                                "Código incorrecto."
-                        }
-                    );
+                response.status(400).json(
+                    {
+                        ok: false,
+                        message: "Código incorrecto."
+                    }
+                );
 
                 return;
             }
@@ -1111,11 +802,8 @@ app.post(
 
             response.json(
                 {
-                    ok:
-                        true,
-
-                    message:
-                        "Código verificado correctamente."
+                    ok: true,
+                    message: "Código verificado correctamente."
                 }
             );
         } catch (
@@ -1123,22 +811,22 @@ app.post(
         ) {
             console.error(
                 "Error verificando código de inicio de sesión:",
-                error.message
+                {
+                    name: error.name,
+                    code: error.code,
+                    command: error.command,
+                    response: error.response,
+                    responseCode: error.responseCode,
+                    message: error.message
+                }
             );
 
-            response
-                .status(
-                    500
-                )
-                .json(
-                    {
-                        ok:
-                            false,
-
-                        message:
-                            "No se pudo verificar el código."
-                    }
-                );
+            response.status(500).json(
+                {
+                    ok: false,
+                    message: "No se pudo verificar el código."
+                }
+            );
         }
     }
 );
@@ -1156,62 +844,34 @@ app.post(
         response
     ) => {
         try {
-            const email =
-                String(
-                    request.body
-                        ?.email ||
-                    ""
-                )
-                    .trim()
-                    .toLowerCase();
+            const email = String(
+                request.body?.email || ""
+            )
+                .trim()
+                .toLowerCase();
 
-            const password =
-                String(
-                    request.body
-                        ?.password ||
-                    ""
+            const password = String(
+                request.body?.password || ""
+            );
+
+            if (!email || !password) {
+                response.status(400).json(
+                    {
+                        ok: false,
+                        message: "Escribe tu correo y contraseña."
+                    }
                 );
-
-            if (
-                !email ||
-                !password
-            ) {
-                response
-                    .status(
-                        400
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
-
-                            message:
-                                "Escribe tu correo y contraseña."
-                        }
-                    );
 
                 return;
             }
 
-            if (
-                email.length >
-                    180 ||
-                password.length >
-                    256
-            ) {
-                response
-                    .status(
-                        400
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
-
-                            message:
-                                "Los datos introducidos no son válidos."
-                        }
-                    );
+            if (email.length > 180 || password.length > 256) {
+                response.status(400).json(
+                    {
+                        ok: false,
+                        message: "Los datos introducidos no son válidos."
+                    }
+                );
 
                 return;
             }
@@ -1223,66 +883,42 @@ app.post(
                 "v1/accounts:signInWithPassword" +
                 `?key=${encodeURIComponent(FIREBASE_WEB_API_KEY)}`;
 
-            const firebaseResponse =
-                await fetch(
-                    firebaseLoginUrl,
-                    {
-                        method:
-                            "POST",
+            const firebaseResponse = await fetch(
+                firebaseLoginUrl,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json"
+                    },
+                    body: JSON.stringify(
+                        {
+                            email,
+                            password,
+                            returnSecureToken: true
+                        }
+                    )
+                }
+            );
 
-                        headers: {
-                            "Content-Type":
-                                "application/json",
+            const firebaseData = await firebaseResponse.json();
 
-                            Accept:
-                                "application/json"
-                        },
-
-                        body:
-                            JSON.stringify(
-                                {
-                                    email,
-                                    password,
-                                    returnSecureToken:
-                                        true
-                                }
-                            )
-                    }
-                );
-
-            const firebaseData =
-                await firebaseResponse.json();
-
-            if (
-                !firebaseResponse.ok
-            ) {
+            if (!firebaseResponse.ok) {
                 const firebaseErrorCode =
-                    firebaseData
-                        ?.error
-                        ?.message ||
+                    firebaseData?.error?.message ||
                     "UNKNOWN_AUTH_ERROR";
 
                 const statusCode =
-                    firebaseErrorCode ===
-                    "TOO_MANY_ATTEMPTS_TRY_LATER"
+                    firebaseErrorCode === "TOO_MANY_ATTEMPTS_TRY_LATER"
                         ? 429
                         : 401;
 
-                response
-                    .status(
-                        statusCode
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
-
-                            message:
-                                getReadableFirebaseAuthError(
-                                    firebaseErrorCode
-                                )
-                        }
-                    );
+                response.status(statusCode).json(
+                    {
+                        ok: false,
+                        message: getReadableFirebaseAuthError(firebaseErrorCode)
+                    }
+                );
 
                 return;
             }
@@ -1308,22 +944,13 @@ app.post(
                 "no-store"
             );
 
-            response
-                .status(
-                    200
-                )
-                .json(
-                    {
-                        ok:
-                            true,
-
-                        message:
-                            "Sesión iniciada correctamente.",
-
-                        redirectUrl:
-                            "/profiles.html"
-                    }
-                );
+            response.status(200).json(
+                {
+                    ok: true,
+                    message: "Sesión iniciada correctamente.",
+                    redirectUrl: "/profiles.html"
+                }
+            );
         } catch (
             error
         ) {
@@ -1332,19 +959,12 @@ app.post(
                 error.message
             );
 
-            response
-                .status(
-                    500
-                )
-                .json(
-                    {
-                        ok:
-                            false,
-
-                        message:
-                            "Ocurrió un error al conectar con el servidor."
-                    }
-                );
+            response.status(500).json(
+                {
+                    ok: false,
+                    message: "Ocurrió un error al conectar con el servidor."
+                }
+            );
         }
     }
 );
@@ -1372,8 +992,7 @@ app.post(
 
         response.json(
             {
-                ok:
-                    true
+                ok: true
             }
         );
     }
@@ -1392,37 +1011,24 @@ app.get(
         response
     ) => {
         try {
-            const session =
-                await getAuthenticatedFirebaseSession(
-                    request,
-                    response
-                );
-
-            if (
-                !session
-            ) {
+            const session = await getAuthenticatedFirebaseSession(
+                request,
                 response
-                    .status(
-                        401
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
+            );
 
-                            message:
-                                "Tu sesión ha caducado. Inicia sesión nuevamente.",
-
-                            redirectUrl:
-                                "/login.html"
-                        }
-                    );
+            if (!session) {
+                response.status(401).json(
+                    {
+                        ok: false,
+                        message: "Tu sesión ha caducado. Inicia sesión nuevamente.",
+                        redirectUrl: "/login.html"
+                    }
+                );
 
                 return;
             }
 
-            const databaseBaseUrl =
-                getFirebaseDatabaseBaseUrl();
+            const databaseBaseUrl = getFirebaseDatabaseBaseUrl();
 
             const profilesUrl =
                 `${databaseBaseUrl}` +
@@ -1430,55 +1036,39 @@ app.get(
                 "/profiles.json" +
                 `?auth=${encodeURIComponent(session.idToken)}`;
 
-            const profilesResponse =
-                await fetch(
-                    profilesUrl,
-                    {
-                        method:
-                            "GET",
-
-                        headers: {
-                            Accept:
-                                "application/json"
-                        }
+            const profilesResponse = await fetch(
+                profilesUrl,
+                {
+                    method: "GET",
+                    headers: {
+                        Accept: "application/json"
                     }
-                );
+                }
+            );
 
-            if (
-                !profilesResponse.ok
-            ) {
-                const firebaseErrorText =
-                    await profilesResponse.text();
+            if (!profilesResponse.ok) {
+                const firebaseErrorText = await profilesResponse.text();
 
                 console.error(
                     "Firebase no permitió leer los perfiles:",
                     firebaseErrorText
                 );
 
-                response
-                    .status(
-                        403
-                    )
-                    .json(
-                        {
-                            ok:
-                                false,
-
-                            message:
-                                "No fue posible acceder a los perfiles de esta cuenta."
-                        }
-                    );
+                response.status(403).json(
+                    {
+                        ok: false,
+                        message: "No fue posible acceder a los perfiles de esta cuenta."
+                    }
+                );
 
                 return;
             }
 
-            const rawProfiles =
-                await profilesResponse.json();
+            const rawProfiles = await profilesResponse.json();
 
-            const profiles =
-                normalizeProfiles(
-                    rawProfiles
-                );
+            const profiles = normalizeProfiles(
+                rawProfiles
+            );
 
             response.setHeader(
                 "Cache-Control",
@@ -1487,12 +1077,8 @@ app.get(
 
             response.json(
                 {
-                    ok:
-                        true,
-
-                    count:
-                        profiles.length,
-
+                    ok: true,
+                    count: profiles.length,
                     profiles
                 }
             );
@@ -1504,57 +1090,34 @@ app.get(
                 error.message
             );
 
-            response
-                .status(
-                    500
-                )
-                .json(
-                    {
-                        ok:
-                            false,
-
-                        message:
-                            "No fue posible cargar los perfiles."
-                    }
-                );
+            response.status(500).json(
+                {
+                    ok: false,
+                    message: "No fue posible cargar los perfiles."
+                }
+            );
         }
     }
 );
 
-/*
- * Convierte perfiles guardados en Firebase en datos limpios para la web.
- */
 function normalizeProfiles(
     rawProfiles
 ) {
-    if (
-        !rawProfiles ||
-        typeof rawProfiles !==
-            "object"
-    ) {
+    if (!rawProfiles || typeof rawProfiles !== "object") {
         return [];
     }
 
-    const profileEntries =
-        Array.isArray(
-            rawProfiles
+    const profileEntries = Array.isArray(rawProfiles)
+        ? rawProfiles.map(
+            (
+                profile,
+                index
+            ) => [
+                String(index),
+                profile
+            ]
         )
-            ? rawProfiles
-                .map(
-                    (
-                        profile,
-                        index
-                    ) => [
-                        String(
-                            index
-                        ),
-
-                        profile
-                    ]
-                )
-            : Object.entries(
-                rawProfiles
-            );
+        : Object.entries(rawProfiles);
 
     return profileEntries
         .map(
@@ -1564,59 +1127,39 @@ function normalizeProfiles(
                     profile
                 ]
             ) => {
-                if (
-                    !profile ||
-                    typeof profile !==
-                        "object"
-                ) {
+                if (!profile || typeof profile !== "object") {
                     return null;
                 }
 
-                const profileName =
-                    String(
-                        profile.name ||
-                        profile.profileName ||
-                        ""
-                    )
-                        .trim();
+                const profileName = String(
+                    profile.name ||
+                    profile.profileName ||
+                    ""
+                ).trim();
 
-                if (
-                    !profileName
-                ) {
+                if (!profileName) {
                     return null;
                 }
 
                 return {
-                    id:
-                        String(
-                            profileId
-                        ),
-
-                    name:
-                        profileName,
-
-                    iconUrl:
-                        String(
-                            profile.iconUrl ||
-                            profile.profileIconUrl ||
-                            profile.avatarUrl ||
-                            profile.imageUrl ||
-                            ""
-                        )
-                            .trim(),
-
-                    isKids:
-                        parseBoolean(
-                            profile.isKids ??
-                            profile.kids ??
-                            false
-                        )
+                    id: String(profileId),
+                    name: profileName,
+                    iconUrl: String(
+                        profile.iconUrl ||
+                        profile.profileIconUrl ||
+                        profile.avatarUrl ||
+                        profile.imageUrl ||
+                        ""
+                    ).trim(),
+                    isKids: parseBoolean(
+                        profile.isKids ??
+                        profile.kids ??
+                        false
+                    )
                 };
             }
         )
-        .filter(
-            Boolean
-        );
+        .filter(Boolean);
 }
 
 /*
@@ -1628,9 +1171,7 @@ function normalizeProfiles(
 registerCatalogRoutes(
     {
         app,
-
         getAuthenticatedFirebaseSession,
-
         getFirebaseDatabaseBaseUrl
     }
 );
@@ -1642,53 +1183,32 @@ registerCatalogRoutes(
  */
 
 let backdropCache = {
-    expiresAt:
-        0,
-
-    items:
-        []
+    expiresAt: 0,
+    items: []
 };
 
 function shuffleItems(
     items
 ) {
-    const shuffled =
-        [
-            ...items
-        ];
+    const shuffled = [
+        ...items
+    ];
 
     for (
-        let index =
-            shuffled.length -
-            1;
-        index >
-            0;
-        index -=
-            1
+        let index = shuffled.length - 1;
+        index > 0;
+        index -= 1
     ) {
-        const randomIndex =
-            Math.floor(
-                Math.random() *
-                (
-                    index +
-                    1
-                )
-            );
+        const randomIndex = Math.floor(
+            Math.random() * (index + 1)
+        );
 
         [
-            shuffled[
-                index
-            ],
-            shuffled[
-                randomIndex
-            ]
+            shuffled[index],
+            shuffled[randomIndex]
         ] = [
-            shuffled[
-                randomIndex
-            ],
-            shuffled[
-                index
-            ]
+            shuffled[randomIndex],
+            shuffled[index]
         ];
     }
 
@@ -1698,17 +1218,12 @@ function shuffleItems(
 function normalizeLimit(
     rawLimit
 ) {
-    const parsedLimit =
-        Number.parseInt(
-            rawLimit,
-            10
-        );
+    const parsedLimit = Number.parseInt(
+        rawLimit,
+        10
+    );
 
-    if (
-        Number.isNaN(
-            parsedLimit
-        )
-    ) {
+    if (Number.isNaN(parsedLimit)) {
         return 8;
     }
 
@@ -1722,28 +1237,17 @@ function normalizeLimit(
 }
 
 async function loadTrendingBackdrops() {
-    const now =
-        Date.now();
+    const now = Date.now();
 
     if (
-        backdropCache
-            .items
-            .length >
-            0 &&
-        backdropCache
-            .expiresAt >
-            now
+        backdropCache.items.length > 0 &&
+        backdropCache.expiresAt > now
     ) {
-        return backdropCache
-            .items;
+        return backdropCache.items;
     }
 
-    if (
-        !TMDB_TOKEN
-    ) {
-        throw new Error(
-            "Falta configurar TMDB_TOKEN en Render."
-        );
+    if (!TMDB_TOKEN) {
+        throw new Error("Falta configurar TMDB_TOKEN en Render.");
     }
 
     const tmdbUrl =
@@ -1751,102 +1255,68 @@ async function loadTrendingBackdrops() {
         "/trending/all/week" +
         "?language=es-ES";
 
-    const tmdbResponse =
-        await fetch(
-            tmdbUrl,
-            {
-                method:
-                    "GET",
-
-                headers: {
-                    Accept:
-                        "application/json",
-
-                    Authorization:
-                        `Bearer ${TMDB_TOKEN}`
-                }
+    const tmdbResponse = await fetch(
+        tmdbUrl,
+        {
+            method: "GET",
+            headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${TMDB_TOKEN}`
             }
-        );
+        }
+    );
 
-    if (
-        !tmdbResponse.ok
-    ) {
+    if (!tmdbResponse.ok) {
         throw new Error(
             `TMDB respondió con el código ${tmdbResponse.status}.`
         );
     }
 
-    const tmdbData =
-        await tmdbResponse.json();
+    const tmdbData = await tmdbResponse.json();
 
-    const usedImages =
-        new Set();
+    const usedImages = new Set();
 
-    const normalizedItems =
-        tmdbData
-            .results
-            .filter(
+    const normalizedItems = tmdbData
+        .results
+        .filter(
+            (
+                item
+            ) =>
                 (
-                    item
-                ) =>
-                    (
-                        item.media_type ===
-                            "movie" ||
-                        item.media_type ===
-                            "tv"
-                    ) &&
-                    Boolean(
-                        item.backdrop_path
-                    )
-            )
-            .map(
-                (
-                    item
-                ) => {
-                    return {
-                        id:
-                            item.id,
-
-                        type:
-                            item.media_type,
-
-                        title:
-                            item.title ||
-                            item.name ||
-                            "Sin título",
-
-                        backdropUrl:
-                            `${TMDB_IMAGE_BASE_URL}${item.backdrop_path}`
-                    };
+                    item.media_type === "movie" ||
+                    item.media_type === "tv"
+                ) &&
+                Boolean(item.backdrop_path)
+        )
+        .map(
+            (
+                item
+            ) => {
+                return {
+                    id: item.id,
+                    type: item.media_type,
+                    title: item.title || item.name || "Sin título",
+                    backdropUrl: `${TMDB_IMAGE_BASE_URL}${item.backdrop_path}`
+                };
+            }
+        )
+        .filter(
+            (
+                item
+            ) => {
+                if (usedImages.has(item.backdropUrl)) {
+                    return false;
                 }
-            )
-            .filter(
-                (
-                    item
-                ) => {
-                    if (
-                        usedImages.has(
-                            item.backdropUrl
-                        )
-                    ) {
-                        return false;
-                    }
 
-                    usedImages.add(
-                        item.backdropUrl
-                    );
+                usedImages.add(item.backdropUrl);
 
-                    return true;
-                }
-            );
+                return true;
+            }
+        );
 
     backdropCache = {
-        expiresAt:
-            now +
-            TMDB_CACHE_DURATION_MS,
-
-        items:
-            normalizedItems
+        expiresAt: now + TMDB_CACHE_DURATION_MS,
+        items: normalizedItems
     };
 
     return normalizedItems;
@@ -1860,41 +1330,33 @@ app.get(
     ) => {
         try {
             const requestedType =
-                request.query.type ===
-                    "movie" ||
-                request.query.type ===
-                    "tv"
+                request.query.type === "movie" ||
+                request.query.type === "tv"
                     ? request.query.type
                     : "all";
 
-            const limit =
-                normalizeLimit(
-                    request.query.limit
-                );
+            const limit = normalizeLimit(
+                request.query.limit
+            );
 
-            const allItems =
-                await loadTrendingBackdrops();
+            const allItems = await loadTrendingBackdrops();
 
             const filteredItems =
-                requestedType ===
-                    "all"
+                requestedType === "all"
                     ? allItems
                     : allItems.filter(
                         (
                             item
                         ) =>
-                            item.type ===
-                            requestedType
+                            item.type === requestedType
                     );
 
-            const selectedItems =
-                shuffleItems(
-                    filteredItems
-                )
-                    .slice(
-                        0,
-                        limit
-                    );
+            const selectedItems = shuffleItems(
+                filteredItems
+            ).slice(
+                0,
+                limit
+            );
 
             response.setHeader(
                 "Cache-Control",
@@ -1903,14 +1365,9 @@ app.get(
 
             response.json(
                 {
-                    count:
-                        selectedItems.length,
-
-                    type:
-                        requestedType,
-
-                    images:
-                        selectedItems
+                    count: selectedItems.length,
+                    type: requestedType,
+                    images: selectedItems
                 }
             );
         } catch (
@@ -1921,16 +1378,11 @@ app.get(
                 error.message
             );
 
-            response
-                .status(
-                    500
-                )
-                .json(
-                    {
-                        error:
-                            "No se pudieron cargar las portadas desde TMDB."
-                    }
-                );
+            response.status(500).json(
+                {
+                    error: "No se pudieron cargar las portadas desde TMDB."
+                }
+            );
         }
     }
 );
@@ -1943,15 +1395,10 @@ app.get(
 
 app.use(
     express.static(
-        path.join(
-            __dirname
-        ),
+        path.join(__dirname),
         {
-            index:
-                false,
-
-            dotfiles:
-                "deny"
+            index: false,
+            dotfiles: "deny"
         }
     )
 );
@@ -1992,8 +1439,12 @@ app.listen(
 
         console.log(
             EMAIL_USER
-                ? "Correo de verificación configurado."
+                ? `Correo de verificación configurado: ${EMAIL_USER}`
                 : "Aviso: falta configurar EMAIL_USER."
+        );
+
+        console.log(
+            "SMTP Gmail configurado con timeout corto."
         );
 
         console.log(
