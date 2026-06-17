@@ -33,6 +33,8 @@ const EMAIL_FROM =
 
 const LOGIN_CODE_DURATION_MS = 5 * 60 * 1000;
 
+const LOGIN_CODE_RESEND_COOLDOWN_MS = 60 * 1000;
+
 const LOGIN_CODE_MAX_ATTEMPTS = 5;
 
 const loginCodesByUid = new Map();
@@ -346,38 +348,83 @@ function encodeBase64Url(
         .replace(/=+$/g, "");
 }
 
-function foldBase64(
+function encodeBodyBase64(
     value
 ) {
-    return value.match(/.{1,76}/g)?.join("\r\n") || value;
+    return Buffer
+        .from(value, "utf8")
+        .toString("base64")
+        .match(/.{1,76}/g)
+        ?.join("\r\n") || "";
+}
+
+function createLoginCodeEmailText(
+    code
+) {
+    return [
+        "VeiCloud",
+        "",
+        `Tu código de verificación es: ${code}`,
+        "",
+        "Este código vence en 5 minutos.",
+        "No compartas este código con nadie.",
+        "",
+        "Si no solicitaste este acceso, puedes ignorar este mensaje."
+    ].join("\n");
 }
 
 function createLoginCodeEmailHtml(
     code
 ) {
     return `
-        <div style="background:#050507;padding:28px;font-family:Arial,sans-serif;color:#ffffff;">
-            <div style="max-width:520px;margin:0 auto;background:#111116;border-radius:22px;padding:28px;">
-                <h1 style="margin:0 0 12px;font-size:28px;font-weight:900;color:#ffffff;">
-                    VeiCloud
-                </h1>
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Código de verificación de VeiCloud</title>
+</head>
+<body style="margin:0;padding:0;background:#050507;font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#050507;padding:24px 12px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#111116;border-radius:20px;padding:28px;">
+                    <tr>
+                        <td>
+                            <div style="font-size:26px;font-weight:800;color:#ffffff;margin-bottom:18px;">
+                                VeiCloud
+                            </div>
 
-                <p style="color:#b8b8c2;font-size:15px;line-height:22px;margin:0;">
-                    Tu código de verificación para iniciar sesión es:
-                </p>
+                            <div style="font-size:15px;line-height:22px;color:#c8c8d2;margin-bottom:18px;">
+                                Usa este código para verificar tu inicio de sesión:
+                            </div>
 
-                <div style="margin:24px 0;padding:20px;border-radius:18px;background:#191920;text-align:center;">
-                    <span style="font-size:42px;font-weight:900;letter-spacing:10px;color:#E50914;">
-                        ${code}
-                    </span>
+                            <div style="background:#18181f;border-radius:16px;padding:18px;text-align:center;margin-bottom:18px;">
+                                <span style="font-size:38px;font-weight:900;letter-spacing:8px;color:#E50914;">
+                                    ${code}
+                                </span>
+                            </div>
+
+                            <div style="font-size:14px;line-height:22px;color:#b8b8c2;margin-bottom:10px;">
+                                Este código vence en 5 minutos.
+                            </div>
+
+                            <div style="font-size:14px;line-height:22px;color:#b8b8c2;">
+                                No compartas este código con nadie. Si no solicitaste este acceso, puedes ignorar este mensaje.
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <div style="max-width:520px;margin:14px auto 0;font-size:12px;line-height:18px;color:#777783;text-align:center;">
+                    Mensaje automático de VeiCloud.
                 </div>
-
-                <p style="color:#b8b8c2;font-size:14px;line-height:22px;margin:0;">
-                    Este código vence en 5 minutos. Si no fuiste tú, ignora este correo.
-                </p>
-            </div>
-        </div>
-    `;
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    `.trim();
 }
 
 async function getGmailAccessToken() {
@@ -424,34 +471,52 @@ function createRawGmailMessage(
     to,
     code
 ) {
+    const boundary =
+        `veicloud_boundary_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
     const cleanTo = sanitizeHeader(to);
 
-    const cleanFrom =
-        sanitizeHeader(EMAIL_FROM);
+    const cleanFrom = sanitizeHeader(EMAIL_FROM);
+
+    const cleanReplyTo = sanitizeHeader(GMAIL_SENDER_EMAIL);
 
     const subject =
-        encodeMimeHeader("Tu código de acceso a VeiCloud");
+        encodeMimeHeader("Código de verificación de VeiCloud");
 
-    const html =
-        createLoginCodeEmailHtml(code);
+    const textBody =
+        encodeBodyBase64(
+            createLoginCodeEmailText(code)
+        );
 
-    const htmlBase64 =
-        foldBase64(
-            Buffer
-                .from(html, "utf8")
-                .toString("base64")
+    const htmlBody =
+        encodeBodyBase64(
+            createLoginCodeEmailHtml(code)
         );
 
     const rawMessage = [
         `From: ${cleanFrom}`,
         `To: ${cleanTo}`,
+        `Reply-To: ${cleanReplyTo}`,
         `Subject: ${subject}`,
         "MIME-Version: 1.0",
         `Date: ${new Date().toUTCString()}`,
+        "Auto-Submitted: auto-generated",
+        "X-Auto-Response-Suppress: All",
+        `Content-Type: multipart/alternative; boundary="${boundary}"`,
+        "",
+        `--${boundary}`,
+        "Content-Type: text/plain; charset=UTF-8",
+        "Content-Transfer-Encoding: base64",
+        "",
+        textBody,
+        "",
+        `--${boundary}`,
         "Content-Type: text/html; charset=UTF-8",
         "Content-Transfer-Encoding: base64",
         "",
-        htmlBase64
+        htmlBody,
+        "",
+        `--${boundary}--`
     ].join("\r\n");
 
     return encodeBase64Url(rawMessage);
@@ -732,6 +797,25 @@ app.post(
                     {
                         ok: false,
                         message: "No se pudo verificar tu cuenta."
+                    }
+                );
+
+                return;
+            }
+
+            const activeCodeData = loginCodesByUid.get(
+                account.uid
+            );
+
+            if (
+                activeCodeData &&
+                activeCodeData.expiresAt > Date.now() &&
+                Date.now() - activeCodeData.createdAt < LOGIN_CODE_RESEND_COOLDOWN_MS
+            ) {
+                response.status(429).json(
+                    {
+                        ok: false,
+                        message: "Espera un minuto antes de pedir otro código."
                     }
                 );
 
