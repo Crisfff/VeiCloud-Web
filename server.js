@@ -1,6 +1,5 @@
 const express = require("express");
 const path = require("path");
-const nodemailer = require("nodemailer");
 
 const registerCatalogRoutes = require("./catalog-routes");
 
@@ -20,15 +19,17 @@ const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY;
 
 const FIREBASE_DATABASE_URL = process.env.FIREBASE_DATABASE_URL;
 
-const EMAIL_USER = process.env.EMAIL_USER;
+const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID;
 
-const EMAIL_PASS = process.env.EMAIL_PASS
-    ? String(process.env.EMAIL_PASS).replace(/\s/g, "")
-    : "";
+const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
+
+const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
+
+const GMAIL_SENDER_EMAIL = process.env.GMAIL_SENDER_EMAIL;
 
 const EMAIL_FROM =
     process.env.EMAIL_FROM ||
-    `VeiCloud <${EMAIL_USER}>`;
+    `VeiCloud <${GMAIL_SENDER_EMAIL}>`;
 
 const LOGIN_CODE_DURATION_MS = 5 * 60 * 1000;
 
@@ -272,40 +273,26 @@ function parseBoolean(
 
 /*
  * =========================================================
- * CORREO Y CÓDIGO
+ * GMAIL API POR HTTPS
  * =========================================================
  */
 
-function requireEmailConfiguration() {
-    if (!EMAIL_USER || !EMAIL_PASS) {
-        throw new Error("Falta configurar EMAIL_USER y EMAIL_PASS en Render.");
+function requireGmailApiConfiguration() {
+    if (!GMAIL_CLIENT_ID) {
+        throw new Error("Falta configurar GMAIL_CLIENT_ID en Render.");
     }
 
-    if (!EMAIL_USER.includes("@")) {
-        throw new Error("EMAIL_USER no parece un correo válido.");
+    if (!GMAIL_CLIENT_SECRET) {
+        throw new Error("Falta configurar GMAIL_CLIENT_SECRET en Render.");
     }
-}
 
-function createEmailTransporter() {
-    requireEmailConfiguration();
+    if (!GMAIL_REFRESH_TOKEN) {
+        throw new Error("Falta configurar GMAIL_REFRESH_TOKEN en Render.");
+    }
 
-    return nodemailer.createTransport(
-        {
-            host: "smtp.gmail.com",
-            port: 587,
-            secure: false,
-            requireTLS: true,
-
-            auth: {
-                user: EMAIL_USER,
-                pass: EMAIL_PASS
-            },
-
-            connectionTimeout: 20000,
-            greetingTimeout: 20000,
-            socketTimeout: 30000
-        }
-    );
+    if (!GMAIL_SENDER_EMAIL) {
+        throw new Error("Falta configurar GMAIL_SENDER_EMAIL en Render.");
+    }
 }
 
 function generateFourDigitCode() {
@@ -332,6 +319,37 @@ function maskEmail(
     }
 
     return `${name.slice(0, 2)}***@${domain}`;
+}
+
+function sanitizeHeader(
+    value
+) {
+    return String(value || "")
+        .replace(/[\r\n]+/g, " ")
+        .trim();
+}
+
+function encodeMimeHeader(
+    value
+) {
+    return `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
+}
+
+function encodeBase64Url(
+    value
+) {
+    return Buffer
+        .from(value, "utf8")
+        .toString("base64")
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/g, "");
+}
+
+function foldBase64(
+    value
+) {
+    return value.match(/.{1,76}/g)?.join("\r\n") || value;
 }
 
 function createLoginCodeEmailHtml(
@@ -362,37 +380,139 @@ function createLoginCodeEmailHtml(
     `;
 }
 
+async function getGmailAccessToken() {
+    requireGmailApiConfiguration();
+
+    const tokenResponse = await fetch(
+        "https://oauth2.googleapis.com/token",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                Accept: "application/json"
+            },
+            body:
+                new URLSearchParams(
+                    {
+                        client_id: GMAIL_CLIENT_ID,
+                        client_secret: GMAIL_CLIENT_SECRET,
+                        refresh_token: GMAIL_REFRESH_TOKEN,
+                        grant_type: "refresh_token"
+                    }
+                ).toString()
+        }
+    );
+
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenResponse.ok) {
+        throw new Error(
+            tokenData?.error_description ||
+            tokenData?.error ||
+            "No se pudo renovar el token de Gmail."
+        );
+    }
+
+    if (!tokenData.access_token) {
+        throw new Error("Google no devolvió access_token.");
+    }
+
+    return tokenData.access_token;
+}
+
+function createRawGmailMessage(
+    to,
+    code
+) {
+    const cleanTo = sanitizeHeader(to);
+
+    const cleanFrom =
+        sanitizeHeader(EMAIL_FROM);
+
+    const subject =
+        encodeMimeHeader("Tu código de acceso a VeiCloud");
+
+    const html =
+        createLoginCodeEmailHtml(code);
+
+    const htmlBase64 =
+        foldBase64(
+            Buffer
+                .from(html, "utf8")
+                .toString("base64")
+        );
+
+    const rawMessage = [
+        `From: ${cleanFrom}`,
+        `To: ${cleanTo}`,
+        `Subject: ${subject}`,
+        "MIME-Version: 1.0",
+        `Date: ${new Date().toUTCString()}`,
+        "Content-Type: text/html; charset=UTF-8",
+        "Content-Transfer-Encoding: base64",
+        "",
+        htmlBase64
+    ].join("\r\n");
+
+    return encodeBase64Url(rawMessage);
+}
+
 async function sendLoginCodeEmail(
     email,
     code
 ) {
-    const transporter = createEmailTransporter();
-
     console.log(
-        "Intentando enviar código a:",
+        "Intentando enviar código por Gmail API a:",
         email
     );
 
-    try {
-        const result = await transporter.sendMail(
+    const accessToken =
+        await getGmailAccessToken();
+
+    const raw =
+        createRawGmailMessage(
+            email,
+            code
+        );
+
+    const gmailResponse =
+        await fetch(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
             {
-                from: EMAIL_FROM,
-                to: email,
-                subject: "Tu código de acceso a VeiCloud",
-                text: `Tu código de acceso a VeiCloud es: ${code}. Vence en 5 minutos.`,
-                html: createLoginCodeEmailHtml(code)
+                method: "POST",
+                headers: {
+                    Authorization:
+                        `Bearer ${accessToken}`,
+                    "Content-Type":
+                        "application/json",
+                    Accept:
+                        "application/json"
+                },
+                body:
+                    JSON.stringify(
+                        {
+                            raw
+                        }
+                    )
             }
         );
 
-        console.log(
-            "Correo enviado correctamente:",
-            result.messageId
-        );
+    const gmailData =
+        await gmailResponse.json();
 
-        return result;
-    } finally {
-        transporter.close();
+    if (!gmailResponse.ok) {
+        throw new Error(
+            gmailData?.error?.message ||
+            "Gmail API no pudo enviar el correo."
+        );
     }
+
+    console.log(
+        "Correo enviado correctamente por Gmail API:",
+        gmailData.id
+    );
+
+    return gmailData;
 }
 
 /*
@@ -658,7 +778,7 @@ app.post(
                 {
                     name: error.name,
                     code: error.code,
-                    command: error.command,
+                    status: error.status,
                     response: error.response,
                     responseCode: error.responseCode,
                     message: error.message
@@ -668,7 +788,7 @@ app.post(
             response.status(500).json(
                 {
                     ok: false,
-                    message: `No se pudo enviar el código. ${error.message || "Revisa la configuración del correo."}`
+                    message: `No se pudo enviar el código. ${error.message || "Revisa Gmail API."}`
                 }
             );
         }
@@ -815,7 +935,7 @@ app.post(
                 {
                     name: error.name,
                     code: error.code,
-                    command: error.command,
+                    status: error.status,
                     response: error.response,
                     responseCode: error.responseCode,
                     message: error.message
@@ -1439,13 +1559,13 @@ app.listen(
         );
 
         console.log(
-            EMAIL_USER
-                ? `Correo de verificación configurado: ${EMAIL_USER}`
-                : "Aviso: falta configurar EMAIL_USER."
+            GMAIL_SENDER_EMAIL
+                ? `Gmail API configurado para: ${GMAIL_SENDER_EMAIL}`
+                : "Aviso: falta configurar GMAIL_SENDER_EMAIL."
         );
 
         console.log(
-            "SMTP Gmail configurado en puerto 587 con STARTTLS."
+            "Envío de códigos conectado por Gmail API HTTPS."
         );
 
         console.log(
