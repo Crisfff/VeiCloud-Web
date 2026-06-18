@@ -1,7 +1,6 @@
 const express = require("express");
 const path = require("path");
 const admin = require("firebase-admin");
-const nodemailer = require("nodemailer");
 
 const registerCatalogRoutes = require("./catalog-routes");
 
@@ -23,17 +22,11 @@ const FIREBASE_DATABASE_URL = process.env.FIREBASE_DATABASE_URL;
 
 const FIREBASE_SERVICE_ACCOUNT_JSON = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
-const SMTP_HOST = process.env.SMTP_HOST;
-
-const SMTP_PORT = process.env.SMTP_PORT || "587";
-
-const SMTP_USER = process.env.SMTP_USER;
-
-const SMTP_PASS = process.env.SMTP_PASS;
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
 const EMAIL_FROM =
     process.env.EMAIL_FROM ||
-    "VeiCloud <no-reply@veicloud.online>";
+    "VeiCloud <crisdeyvid00@gmail.com>";
 
 const LOGIN_CODE_DURATION_MS = 5 * 60 * 1000;
 
@@ -150,14 +143,21 @@ function parseCookies(
                     return cookies;
                 }
 
-                const name = part.slice(0, separatorIndex);
+                const name = part.slice(
+                    0,
+                    separatorIndex
+                );
 
-                const rawValue = part.slice(separatorIndex + 1);
+                const rawValue = part.slice(
+                    separatorIndex + 1
+                );
 
                 try {
-                    cookies[name] = decodeURIComponent(rawValue);
+                    cookies[name] =
+                        decodeURIComponent(rawValue);
                 } catch {
-                    cookies[name] = rawValue;
+                    cookies[name] =
+                        rawValue;
                 }
 
                 return cookies;
@@ -307,7 +307,8 @@ function getFirebaseAdminAuth() {
     let serviceAccount;
 
     try {
-        serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT_JSON);
+        serviceAccount =
+            JSON.parse(FIREBASE_SERVICE_ACCOUNT_JSON);
     } catch {
         throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON no tiene formato JSON válido.");
     }
@@ -325,7 +326,8 @@ function getFirebaseAdminAuth() {
     }
 
     const privateKey =
-        String(serviceAccount.private_key).replace(/\\n/g, "\n");
+        String(serviceAccount.private_key)
+            .replace(/\\n/g, "\n");
 
     admin.initializeApp(
         {
@@ -359,25 +361,13 @@ function isValidEmailAddress(
 
 /*
  * =========================================================
- * BREVO SMTP
+ * BREVO API HTTPS
  * =========================================================
  */
 
-function requireSmtpConfiguration() {
-    if (!SMTP_HOST) {
-        throw new Error("Falta configurar SMTP_HOST en Render.");
-    }
-
-    if (!SMTP_PORT) {
-        throw new Error("Falta configurar SMTP_PORT en Render.");
-    }
-
-    if (!SMTP_USER) {
-        throw new Error("Falta configurar SMTP_USER en Render.");
-    }
-
-    if (!SMTP_PASS) {
-        throw new Error("Falta configurar SMTP_PASS en Render.");
+function requireBrevoConfiguration() {
+    if (!BREVO_API_KEY) {
+        throw new Error("Falta configurar BREVO_API_KEY en Render.");
     }
 
     if (!EMAIL_FROM) {
@@ -385,20 +375,37 @@ function requireSmtpConfiguration() {
     }
 }
 
-function getSmtpTransporter() {
-    requireSmtpConfiguration();
+function parseEmailFrom(
+    value
+) {
+    const rawValue =
+        String(value || "").trim();
 
-    return nodemailer.createTransport(
-        {
-            host: SMTP_HOST,
-            port: Number(SMTP_PORT),
-            secure: Number(SMTP_PORT) === 465,
-            auth: {
-                user: SMTP_USER,
-                pass: SMTP_PASS
-            }
-        }
-    );
+    const match =
+        rawValue.match(/^(.*?)\s*<([^>]+)>$/);
+
+    if (match) {
+        const name =
+            match[1]
+                .replace(/^"|"$/g, "")
+                .trim() ||
+            "VeiCloud";
+
+        const email =
+            match[2]
+                .trim()
+                .toLowerCase();
+
+        return {
+            name,
+            email
+        };
+    }
+
+    return {
+        name: "VeiCloud",
+        email: rawValue.toLowerCase()
+    };
 }
 
 async function sendCustomEmail(
@@ -409,26 +416,64 @@ async function sendCustomEmail(
         html
     }
 ) {
-    const transporter =
-        getSmtpTransporter();
+    requireBrevoConfiguration();
 
-    const result =
-        await transporter.sendMail(
+    const sender =
+        parseEmailFrom(EMAIL_FROM);
+
+    if (!isValidEmailAddress(sender.email)) {
+        throw new Error("EMAIL_FROM no tiene un correo válido.");
+    }
+
+    const brevoResponse =
+        await fetch(
+            "https://api.brevo.com/v3/smtp/email",
             {
-                from: EMAIL_FROM,
-                to,
-                subject,
-                text,
-                html
+                method: "POST",
+                headers: {
+                    "api-key": BREVO_API_KEY,
+                    "Content-Type": "application/json",
+                    Accept: "application/json"
+                },
+                body:
+                    JSON.stringify(
+                        {
+                            sender: {
+                                name: sender.name,
+                                email: sender.email
+                            },
+                            to: [
+                                {
+                                    email: to
+                                }
+                            ],
+                            subject,
+                            htmlContent: html,
+                            textContent: text
+                        }
+                    )
             }
         );
 
+    const brevoData =
+        await brevoResponse.json().catch(
+            () => ({})
+        );
+
+    if (!brevoResponse.ok) {
+        throw new Error(
+            brevoData?.message ||
+            brevoData?.error ||
+            `Brevo API respondió con código ${brevoResponse.status}.`
+        );
+    }
+
     console.log(
-        "Correo enviado correctamente por Brevo SMTP:",
-        result.messageId
+        "Correo enviado correctamente por Brevo API:",
+        brevoData.messageId || brevoData
     );
 
-    return result;
+    return brevoData;
 }
 
 /*
@@ -449,7 +494,8 @@ function generateFourDigitCode() {
 function maskEmail(
     email
 ) {
-    const cleanEmail = String(email || "").trim();
+    const cleanEmail =
+        String(email || "").trim();
 
     const [
         name,
@@ -556,7 +602,7 @@ async function sendLoginCodeEmail(
     code
 ) {
     console.log(
-        "Intentando enviar código de inicio por Brevo SMTP a:",
+        "Intentando enviar código de inicio por Brevo API a:",
         email
     );
 
@@ -657,7 +703,7 @@ async function sendPasswordResetCodeEmail(
     code
 ) {
     console.log(
-        "Intentando enviar código de recuperación por Brevo SMTP a:",
+        "Intentando enviar código de recuperación por Brevo API a:",
         email
     );
 
@@ -693,29 +739,33 @@ async function lookupFirebaseAccount(
         "v1/accounts:lookup" +
         `?key=${encodeURIComponent(FIREBASE_WEB_API_KEY)}`;
 
-    const lookupResponse = await fetch(
-        lookupUrl,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json"
-            },
-            body: JSON.stringify(
-                {
-                    idToken
-                }
-            )
-        }
-    );
+    const lookupResponse =
+        await fetch(
+            lookupUrl,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json"
+                },
+                body:
+                    JSON.stringify(
+                        {
+                            idToken
+                        }
+                    )
+            }
+        );
 
     if (!lookupResponse.ok) {
         return null;
     }
 
-    const lookupData = await lookupResponse.json();
+    const lookupData =
+        await lookupResponse.json();
 
-    const user = lookupData?.users?.[0];
+    const user =
+        lookupData?.users?.[0];
 
     if (!user?.localId) {
         return null;
@@ -743,7 +793,8 @@ async function refreshFirebaseSession(
         "v1/token" +
         `?key=${encodeURIComponent(FIREBASE_WEB_API_KEY)}`;
 
-    const formBody = new URLSearchParams();
+    const formBody =
+        new URLSearchParams();
 
     formBody.set(
         "grant_type",
@@ -755,23 +806,26 @@ async function refreshFirebaseSession(
         refreshToken
     );
 
-    const refreshResponse = await fetch(
-        refreshUrl,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                Accept: "application/json"
-            },
-            body: formBody.toString()
-        }
-    );
+    const refreshResponse =
+        await fetch(
+            refreshUrl,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    Accept: "application/json"
+                },
+                body:
+                    formBody.toString()
+            }
+        );
 
     if (!refreshResponse.ok) {
         return null;
     }
 
-    const refreshData = await refreshResponse.json();
+    const refreshData =
+        await refreshResponse.json();
 
     if (
         !refreshData.id_token ||
@@ -792,22 +846,26 @@ async function getAuthenticatedFirebaseSession(
     request,
     response
 ) {
-    const cookies = parseCookies(
-        request.headers.cookie
-    );
+    const cookies =
+        parseCookies(
+            request.headers.cookie
+        );
 
-    const currentIdToken = cookies[ID_TOKEN_COOKIE_NAME];
+    const currentIdToken =
+        cookies[ID_TOKEN_COOKIE_NAME];
 
-    const currentRefreshToken = cookies[REFRESH_TOKEN_COOKIE_NAME];
+    const currentRefreshToken =
+        cookies[REFRESH_TOKEN_COOKIE_NAME];
 
     if (!currentIdToken && !currentRefreshToken) {
         return null;
     }
 
     if (currentIdToken) {
-        const firebaseAccount = await lookupFirebaseAccount(
-            currentIdToken
-        );
+        const firebaseAccount =
+            await lookupFirebaseAccount(
+                currentIdToken
+            );
 
         if (firebaseAccount) {
             return {
@@ -824,9 +882,10 @@ async function getAuthenticatedFirebaseSession(
         return null;
     }
 
-    const renewedSession = await refreshFirebaseSession(
-        currentRefreshToken
-    );
+    const renewedSession =
+        await refreshFirebaseSession(
+            currentRefreshToken
+        );
 
     if (!renewedSession) {
         clearSessionCookies(response);
@@ -864,9 +923,10 @@ app.post(
                 "Solicitud recibida en /api/send-login-code"
             );
 
-            const idToken = String(
-                request.body?.idToken || ""
-            ).trim();
+            const idToken =
+                String(
+                    request.body?.idToken || ""
+                ).trim();
 
             if (!idToken) {
                 response.status(401).json(
@@ -879,9 +939,10 @@ app.post(
                 return;
             }
 
-            const account = await lookupFirebaseAccount(
-                idToken
-            );
+            const account =
+                await lookupFirebaseAccount(
+                    idToken
+                );
 
             if (!account || !account.uid || !account.email) {
                 response.status(401).json(
@@ -894,9 +955,10 @@ app.post(
                 return;
             }
 
-            const activeCodeData = loginCodesByUid.get(
-                account.uid
-            );
+            const activeCodeData =
+                loginCodesByUid.get(
+                    account.uid
+                );
 
             if (
                 activeCodeData &&
@@ -913,9 +975,11 @@ app.post(
                 return;
             }
 
-            const code = generateFourDigitCode();
+            const code =
+                generateFourDigitCode();
 
-            const now = Date.now();
+            const now =
+                Date.now();
 
             loginCodesByUid.set(
                 account.uid,
@@ -953,7 +1017,6 @@ app.post(
                 {
                     name: error.name,
                     code: error.code,
-                    responseCode: error.responseCode,
                     message: error.message
                 }
             );
@@ -961,7 +1024,7 @@ app.post(
             response.status(500).json(
                 {
                     ok: false,
-                    message: `No se pudo enviar el código. ${error.message || "Revisa Brevo SMTP."}`
+                    message: `No se pudo enviar el código. ${error.message || "Revisa Brevo API."}`
                 }
             );
         }
@@ -975,15 +1038,17 @@ app.post(
         response
     ) => {
         try {
-            const idToken = String(
-                request.body?.idToken || ""
-            ).trim();
+            const idToken =
+                String(
+                    request.body?.idToken || ""
+                ).trim();
 
-            const code = String(
-                request.body?.code || ""
-            )
-                .trim()
-                .replace(/\D/g, "");
+            const code =
+                String(
+                    request.body?.code || ""
+                )
+                    .trim()
+                    .replace(/\D/g, "");
 
             if (!idToken) {
                 response.status(401).json(
@@ -1007,9 +1072,10 @@ app.post(
                 return;
             }
 
-            const account = await lookupFirebaseAccount(
-                idToken
-            );
+            const account =
+                await lookupFirebaseAccount(
+                    idToken
+                );
 
             if (!account || !account.uid) {
                 response.status(401).json(
@@ -1022,9 +1088,10 @@ app.post(
                 return;
             }
 
-            const savedCodeData = loginCodesByUid.get(
-                account.uid
-            );
+            const savedCodeData =
+                loginCodesByUid.get(
+                    account.uid
+                );
 
             if (!savedCodeData) {
                 response.status(404).json(
@@ -1187,7 +1254,8 @@ app.post(
             const firebaseAdminAuth =
                 getFirebaseAdminAuth();
 
-            let firebaseUser = null;
+            let firebaseUser =
+                null;
 
             try {
                 firebaseUser =
@@ -1269,7 +1337,6 @@ app.post(
                 {
                     name: error.name,
                     code: error.code,
-                    responseCode: error.responseCode,
                     message: error.message
                 }
             );
@@ -1474,15 +1541,17 @@ app.post(
         response
     ) => {
         try {
-            const email = String(
-                request.body?.email || ""
-            )
-                .trim()
-                .toLowerCase();
+            const email =
+                String(
+                    request.body?.email || ""
+                )
+                    .trim()
+                    .toLowerCase();
 
-            const password = String(
-                request.body?.password || ""
-            );
+            const password =
+                String(
+                    request.body?.password || ""
+                );
 
             if (!email || !password) {
                 response.status(400).json(
@@ -1513,25 +1582,28 @@ app.post(
                 "v1/accounts:signInWithPassword" +
                 `?key=${encodeURIComponent(FIREBASE_WEB_API_KEY)}`;
 
-            const firebaseResponse = await fetch(
-                firebaseLoginUrl,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Accept: "application/json"
-                    },
-                    body: JSON.stringify(
-                        {
-                            email,
-                            password,
-                            returnSecureToken: true
-                        }
-                    )
-                }
-            );
+            const firebaseResponse =
+                await fetch(
+                    firebaseLoginUrl,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Accept: "application/json"
+                        },
+                        body:
+                            JSON.stringify(
+                                {
+                                    email,
+                                    password,
+                                    returnSecureToken: true
+                                }
+                            )
+                    }
+                );
 
-            const firebaseData = await firebaseResponse.json();
+            const firebaseData =
+                await firebaseResponse.json();
 
             if (!firebaseResponse.ok) {
                 const firebaseErrorCode =
@@ -1641,10 +1713,11 @@ app.get(
         response
     ) => {
         try {
-            const session = await getAuthenticatedFirebaseSession(
-                request,
-                response
-            );
+            const session =
+                await getAuthenticatedFirebaseSession(
+                    request,
+                    response
+                );
 
             if (!session) {
                 response.status(401).json(
@@ -1658,7 +1731,8 @@ app.get(
                 return;
             }
 
-            const databaseBaseUrl = getFirebaseDatabaseBaseUrl();
+            const databaseBaseUrl =
+                getFirebaseDatabaseBaseUrl();
 
             const profilesUrl =
                 `${databaseBaseUrl}` +
@@ -1666,18 +1740,20 @@ app.get(
                 "/profiles.json" +
                 `?auth=${encodeURIComponent(session.idToken)}`;
 
-            const profilesResponse = await fetch(
-                profilesUrl,
-                {
-                    method: "GET",
-                    headers: {
-                        Accept: "application/json"
+            const profilesResponse =
+                await fetch(
+                    profilesUrl,
+                    {
+                        method: "GET",
+                        headers: {
+                            Accept: "application/json"
+                        }
                     }
-                }
-            );
+                );
 
             if (!profilesResponse.ok) {
-                const firebaseErrorText = await profilesResponse.text();
+                const firebaseErrorText =
+                    await profilesResponse.text();
 
                 console.error(
                     "Firebase no permitió leer los perfiles:",
@@ -1694,11 +1770,13 @@ app.get(
                 return;
             }
 
-            const rawProfiles = await profilesResponse.json();
+            const rawProfiles =
+                await profilesResponse.json();
 
-            const profiles = normalizeProfiles(
-                rawProfiles
-            );
+            const profiles =
+                normalizeProfiles(
+                    rawProfiles
+                );
 
             response.setHeader(
                 "Cache-Control",
@@ -1737,17 +1815,18 @@ function normalizeProfiles(
         return [];
     }
 
-    const profileEntries = Array.isArray(rawProfiles)
-        ? rawProfiles.map(
-            (
-                profile,
-                index
-            ) => [
-                String(index),
-                profile
-            ]
-        )
-        : Object.entries(rawProfiles);
+    const profileEntries =
+        Array.isArray(rawProfiles)
+            ? rawProfiles.map(
+                (
+                    profile,
+                    index
+                ) => [
+                    String(index),
+                    profile
+                ]
+            )
+            : Object.entries(rawProfiles);
 
     return profileEntries
         .map(
@@ -1761,11 +1840,12 @@ function normalizeProfiles(
                     return null;
                 }
 
-                const profileName = String(
-                    profile.name ||
-                    profile.profileName ||
-                    ""
-                ).trim();
+                const profileName =
+                    String(
+                        profile.name ||
+                        profile.profileName ||
+                        ""
+                    ).trim();
 
                 if (!profileName) {
                     return null;
@@ -1774,18 +1854,20 @@ function normalizeProfiles(
                 return {
                     id: String(profileId),
                     name: profileName,
-                    iconUrl: String(
-                        profile.iconUrl ||
-                        profile.profileIconUrl ||
-                        profile.avatarUrl ||
-                        profile.imageUrl ||
-                        ""
-                    ).trim(),
-                    isKids: parseBoolean(
-                        profile.isKids ??
-                        profile.kids ??
-                        false
-                    )
+                    iconUrl:
+                        String(
+                            profile.iconUrl ||
+                            profile.profileIconUrl ||
+                            profile.avatarUrl ||
+                            profile.imageUrl ||
+                            ""
+                        ).trim(),
+                    isKids:
+                        parseBoolean(
+                            profile.isKids ??
+                            profile.kids ??
+                            false
+                        )
                 };
             }
         )
@@ -1829,9 +1911,10 @@ function shuffleItems(
         index > 0;
         index -= 1
     ) {
-        const randomIndex = Math.floor(
-            Math.random() * (index + 1)
-        );
+        const randomIndex =
+            Math.floor(
+                Math.random() * (index + 1)
+            );
 
         [
             shuffled[index],
@@ -1848,10 +1931,11 @@ function shuffleItems(
 function normalizeLimit(
     rawLimit
 ) {
-    const parsedLimit = Number.parseInt(
-        rawLimit,
-        10
-    );
+    const parsedLimit =
+        Number.parseInt(
+            rawLimit,
+            10
+        );
 
     if (Number.isNaN(parsedLimit)) {
         return 8;
@@ -1867,7 +1951,8 @@ function normalizeLimit(
 }
 
 async function loadTrendingBackdrops() {
-    const now = Date.now();
+    const now =
+        Date.now();
 
     if (
         backdropCache.items.length > 0 &&
@@ -1885,16 +1970,17 @@ async function loadTrendingBackdrops() {
         "/trending/all/week" +
         "?language=es-ES";
 
-    const tmdbResponse = await fetch(
-        tmdbUrl,
-        {
-            method: "GET",
-            headers: {
-                Accept: "application/json",
-                Authorization: `Bearer ${TMDB_TOKEN}`
+    const tmdbResponse =
+        await fetch(
+            tmdbUrl,
+            {
+                method: "GET",
+                headers: {
+                    Accept: "application/json",
+                    Authorization: `Bearer ${TMDB_TOKEN}`
+                }
             }
-        }
-    );
+        );
 
     if (!tmdbResponse.ok) {
         throw new Error(
@@ -1902,47 +1988,50 @@ async function loadTrendingBackdrops() {
         );
     }
 
-    const tmdbData = await tmdbResponse.json();
+    const tmdbData =
+        await tmdbResponse.json();
 
-    const usedImages = new Set();
+    const usedImages =
+        new Set();
 
-    const normalizedItems = tmdbData
-        .results
-        .filter(
-            (
-                item
-            ) =>
+    const normalizedItems =
+        tmdbData
+            .results
+            .filter(
                 (
-                    item.media_type === "movie" ||
-                    item.media_type === "tv"
-                ) &&
-                Boolean(item.backdrop_path)
-        )
-        .map(
-            (
-                item
-            ) => {
-                return {
-                    id: item.id,
-                    type: item.media_type,
-                    title: item.title || item.name || "Sin título",
-                    backdropUrl: `${TMDB_IMAGE_BASE_URL}${item.backdrop_path}`
-                };
-            }
-        )
-        .filter(
-            (
-                item
-            ) => {
-                if (usedImages.has(item.backdropUrl)) {
-                    return false;
+                    item
+                ) =>
+                    (
+                        item.media_type === "movie" ||
+                        item.media_type === "tv"
+                    ) &&
+                    Boolean(item.backdrop_path)
+            )
+            .map(
+                (
+                    item
+                ) => {
+                    return {
+                        id: item.id,
+                        type: item.media_type,
+                        title: item.title || item.name || "Sin título",
+                        backdropUrl: `${TMDB_IMAGE_BASE_URL}${item.backdrop_path}`
+                    };
                 }
+            )
+            .filter(
+                (
+                    item
+                ) => {
+                    if (usedImages.has(item.backdropUrl)) {
+                        return false;
+                    }
 
-                usedImages.add(item.backdropUrl);
+                    usedImages.add(item.backdropUrl);
 
-                return true;
-            }
-        );
+                    return true;
+                }
+            );
 
     backdropCache = {
         expiresAt: now + TMDB_CACHE_DURATION_MS,
@@ -1965,11 +2054,13 @@ app.get(
                     ? request.query.type
                     : "all";
 
-            const limit = normalizeLimit(
-                request.query.limit
-            );
+            const limit =
+                normalizeLimit(
+                    request.query.limit
+                );
 
-            const allItems = await loadTrendingBackdrops();
+            const allItems =
+                await loadTrendingBackdrops();
 
             const filteredItems =
                 requestedType === "all"
@@ -1981,12 +2072,13 @@ app.get(
                             item.type === requestedType
                     );
 
-            const selectedItems = shuffleItems(
-                filteredItems
-            ).slice(
-                0,
-                limit
-            );
+            const selectedItems =
+                shuffleItems(
+                    filteredItems
+                ).slice(
+                    0,
+                    limit
+                );
 
             response.setHeader(
                 "Cache-Control",
@@ -2074,9 +2166,15 @@ app.listen(
         );
 
         console.log(
-            SMTP_HOST && SMTP_USER && SMTP_PASS
-                ? "Brevo SMTP configurado para envío de correos."
-                : "Aviso: falta configurar SMTP_HOST, SMTP_USER o SMTP_PASS."
+            BREVO_API_KEY
+                ? "Brevo API HTTPS configurado para envío de correos."
+                : "Aviso: falta configurar BREVO_API_KEY."
+        );
+
+        console.log(
+            EMAIL_FROM
+                ? `Remitente configurado: ${EMAIL_FROM}`
+                : "Aviso: falta configurar EMAIL_FROM."
         );
 
         console.log(
