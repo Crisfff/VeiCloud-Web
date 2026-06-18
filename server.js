@@ -307,13 +307,31 @@ function getFirebaseAdminAuth() {
         throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON no tiene formato JSON válido.");
     }
 
-    if (serviceAccount.private_key) {
-        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+    if (!serviceAccount.project_id) {
+        throw new Error("El JSON de Firebase Admin no tiene project_id.");
     }
+
+    if (!serviceAccount.client_email) {
+        throw new Error("El JSON de Firebase Admin no tiene client_email.");
+    }
+
+    if (!serviceAccount.private_key) {
+        throw new Error("El JSON de Firebase Admin no tiene private_key.");
+    }
+
+    const privateKey =
+        String(serviceAccount.private_key).replace(/\\n/g, "\n");
 
     admin.initializeApp(
         {
-            credential: admin.credential.cert(serviceAccount)
+            credential:
+                admin.credential.cert(
+                    {
+                        projectId: serviceAccount.project_id,
+                        clientEmail: serviceAccount.client_email,
+                        privateKey
+                    }
+                )
         }
     );
 
@@ -1329,12 +1347,18 @@ app.post(
             const firebaseAdminAuth =
                 getFirebaseAdminAuth();
 
+            const actionCodeSettings = {
+                url: "https://veicloud.online/login.html",
+                handleCodeInApp: false
+            };
+
             let resetLink = "";
 
             try {
                 resetLink =
                     await firebaseAdminAuth.generatePasswordResetLink(
-                        email
+                        email,
+                        actionCodeSettings
                     );
             } catch (
                 error
