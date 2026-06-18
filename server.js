@@ -1,5 +1,6 @@
 const express = require("express");
 const path = require("path");
+const admin = require("firebase-admin");
 
 const registerCatalogRoutes = require("./catalog-routes");
 
@@ -19,6 +20,8 @@ const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY;
 
 const FIREBASE_DATABASE_URL = process.env.FIREBASE_DATABASE_URL;
 
+const FIREBASE_SERVICE_ACCOUNT_JSON = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+
 const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID;
 
 const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
@@ -37,7 +40,11 @@ const LOGIN_CODE_RESEND_COOLDOWN_MS = 60 * 1000;
 
 const LOGIN_CODE_MAX_ATTEMPTS = 5;
 
+const PASSWORD_RESET_RESEND_COOLDOWN_MS = 60 * 1000;
+
 const loginCodesByUid = new Map();
+
+const passwordResetRequestsByEmail = new Map();
 
 /*
  * =========================================================
@@ -62,7 +69,7 @@ const REFRESH_TOKEN_COOKIE_DURATION_SECONDS = 30 * 24 * 60 * 60;
 app.use(
     express.json(
         {
-            limit: "16kb"
+            limit: "64kb"
         }
     )
 );
@@ -275,6 +282,78 @@ function parseBoolean(
 
 /*
  * =========================================================
+ * FIREBASE ADMIN
+ * =========================================================
+ */
+
+function requireFirebaseAdminConfiguration() {
+    if (!FIREBASE_SERVICE_ACCOUNT_JSON) {
+        throw new Error("Falta configurar FIREBASE_SERVICE_ACCOUNT_JSON en Render.");
+    }
+}
+
+function getFirebaseAdminAuth() {
+    requireFirebaseAdminConfiguration();
+
+    if (admin.apps.length > 0) {
+        return admin.auth();
+    }
+
+    let serviceAccount;
+
+    try {
+        serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT_JSON);
+    } catch {
+        throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON no tiene formato JSON válido.");
+    }
+
+    if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+    }
+
+    admin.initializeApp(
+        {
+            credential: admin.credential.cert(serviceAccount)
+        }
+    );
+
+    return admin.auth();
+}
+
+function normalizeEmailAddress(
+    email
+) {
+    return String(email || "")
+        .trim()
+        .toLowerCase();
+}
+
+function isValidEmailAddress(
+    email
+) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function canSendPasswordResetNow(
+    email
+) {
+    const lastRequestAt =
+        passwordResetRequestsByEmail.get(email) || 0;
+
+    return Date.now() - lastRequestAt >= PASSWORD_RESET_RESEND_COOLDOWN_MS;
+}
+
+function markPasswordResetSent(
+    email
+) {
+    passwordResetRequestsByEmail.set(
+        email,
+        Date.now()
+    );
+}
+
+/*
+ * =========================================================
  * GMAIL API POR HTTPS
  * =========================================================
  */
@@ -331,6 +410,16 @@ function sanitizeHeader(
         .trim();
 }
 
+function escapeHtml(
+    value
+) {
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
 function encodeMimeHeader(
     value
 ) {
@@ -356,75 +445,6 @@ function encodeBodyBase64(
         .toString("base64")
         .match(/.{1,76}/g)
         ?.join("\r\n") || "";
-}
-
-function createLoginCodeEmailText(
-    code
-) {
-    return [
-        "VeiCloud",
-        "",
-        `Tu código de verificación es: ${code}`,
-        "",
-        "Este código vence en 5 minutos.",
-        "No compartas este código con nadie.",
-        "",
-        "Si no solicitaste este acceso, puedes ignorar este mensaje."
-    ].join("\n");
-}
-
-function createLoginCodeEmailHtml(
-    code
-) {
-    return `
-<!doctype html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Código de verificación de VeiCloud</title>
-</head>
-<body style="margin:0;padding:0;background:#050507;font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#050507;padding:24px 12px;">
-        <tr>
-            <td align="center">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#111116;border-radius:20px;padding:28px;">
-                    <tr>
-                        <td>
-                            <div style="font-size:26px;font-weight:800;color:#ffffff;margin-bottom:18px;">
-                                VeiCloud
-                            </div>
-
-                            <div style="font-size:15px;line-height:22px;color:#c8c8d2;margin-bottom:18px;">
-                                Usa este código para verificar tu inicio de sesión:
-                            </div>
-
-                            <div style="background:#18181f;border-radius:16px;padding:18px;text-align:center;margin-bottom:18px;">
-                                <span style="font-size:38px;font-weight:900;letter-spacing:8px;color:#E50914;">
-                                    ${code}
-                                </span>
-                            </div>
-
-                            <div style="font-size:14px;line-height:22px;color:#b8b8c2;margin-bottom:10px;">
-                                Este código vence en 5 minutos.
-                            </div>
-
-                            <div style="font-size:14px;line-height:22px;color:#b8b8c2;">
-                                No compartas este código con nadie. Si no solicitaste este acceso, puedes ignorar este mensaje.
-                            </div>
-                        </td>
-                    </tr>
-                </table>
-
-                <div style="max-width:520px;margin:14px auto 0;font-size:12px;line-height:18px;color:#777783;text-align:center;">
-                    Mensaje automático de VeiCloud.
-                </div>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>
-    `.trim();
 }
 
 async function getGmailAccessToken() {
@@ -467,37 +487,40 @@ async function getGmailAccessToken() {
     return tokenData.access_token;
 }
 
-function createRawGmailMessage(
-    to,
-    code
+function createRawCustomGmailMessage(
+    {
+        to,
+        subject,
+        text,
+        html
+    }
 ) {
     const boundary =
         `veicloud_boundary_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
-    const cleanTo = sanitizeHeader(to);
+    const cleanTo =
+        sanitizeHeader(to);
 
-    const cleanFrom = sanitizeHeader(EMAIL_FROM);
+    const cleanFrom =
+        sanitizeHeader(EMAIL_FROM);
 
-    const cleanReplyTo = sanitizeHeader(GMAIL_SENDER_EMAIL);
+    const cleanReplyTo =
+        sanitizeHeader(GMAIL_SENDER_EMAIL);
 
-    const subject =
-        encodeMimeHeader("Código de verificación de VeiCloud");
+    const encodedSubject =
+        encodeMimeHeader(subject);
 
     const textBody =
-        encodeBodyBase64(
-            createLoginCodeEmailText(code)
-        );
+        encodeBodyBase64(text);
 
     const htmlBody =
-        encodeBodyBase64(
-            createLoginCodeEmailHtml(code)
-        );
+        encodeBodyBase64(html);
 
     const rawMessage = [
         `From: ${cleanFrom}`,
         `To: ${cleanTo}`,
         `Reply-To: ${cleanReplyTo}`,
-        `Subject: ${subject}`,
+        `Subject: ${encodedSubject}`,
         "MIME-Version: 1.0",
         `Date: ${new Date().toUTCString()}`,
         "Auto-Submitted: auto-generated",
@@ -522,22 +545,25 @@ function createRawGmailMessage(
     return encodeBase64Url(rawMessage);
 }
 
-async function sendLoginCodeEmail(
-    email,
-    code
+async function sendCustomGmailEmail(
+    {
+        to,
+        subject,
+        text,
+        html
+    }
 ) {
-    console.log(
-        "Intentando enviar código por Gmail API a:",
-        email
-    );
-
     const accessToken =
         await getGmailAccessToken();
 
     const raw =
-        createRawGmailMessage(
-            email,
-            code
+        createRawCustomGmailMessage(
+            {
+                to,
+                subject,
+                text,
+                html
+            }
         );
 
     const gmailResponse =
@@ -572,8 +598,217 @@ async function sendLoginCodeEmail(
         );
     }
 
+    return gmailData;
+}
+
+/*
+ * =========================================================
+ * CORREO DE CÓDIGO DE INICIO
+ * =========================================================
+ */
+
+function createLoginCodeEmailText(
+    code
+) {
+    return [
+        "VeiCloud",
+        "",
+        `Tu código de verificación es: ${code}`,
+        "",
+        "Este código vence en 5 minutos.",
+        "No compartas este código con nadie.",
+        "",
+        "Si no solicitaste este acceso, puedes ignorar este mensaje."
+    ].join("\n");
+}
+
+function createLoginCodeEmailHtml(
+    code
+) {
+    const safeCode =
+        escapeHtml(code);
+
+    return `
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Código de verificación de VeiCloud</title>
+</head>
+<body style="margin:0;padding:0;background:#050507;font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#050507;padding:24px 12px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#111116;border-radius:20px;padding:28px;">
+                    <tr>
+                        <td>
+                            <div style="font-size:26px;font-weight:800;color:#ffffff;margin-bottom:18px;">
+                                VeiCloud
+                            </div>
+
+                            <div style="font-size:15px;line-height:22px;color:#c8c8d2;margin-bottom:18px;">
+                                Usa este código para verificar tu inicio de sesión:
+                            </div>
+
+                            <div style="background:#18181f;border-radius:16px;padding:18px;text-align:center;margin-bottom:18px;">
+                                <span style="font-size:38px;font-weight:900;letter-spacing:8px;color:#E50914;">
+                                    ${safeCode}
+                                </span>
+                            </div>
+
+                            <div style="font-size:14px;line-height:22px;color:#b8b8c2;margin-bottom:10px;">
+                                Este código vence en 5 minutos.
+                            </div>
+
+                            <div style="font-size:14px;line-height:22px;color:#b8b8c2;">
+                                No compartas este código con nadie. Si no solicitaste este acceso, puedes ignorar este mensaje.
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <div style="max-width:520px;margin:14px auto 0;font-size:12px;line-height:18px;color:#777783;text-align:center;">
+                    Mensaje automático de VeiCloud.
+                </div>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    `.trim();
+}
+
+async function sendLoginCodeEmail(
+    email,
+    code
+) {
+    console.log(
+        "Intentando enviar código por Gmail API a:",
+        email
+    );
+
+    const gmailData =
+        await sendCustomGmailEmail(
+            {
+                to: email,
+                subject: "Código de verificación de VeiCloud",
+                text: createLoginCodeEmailText(code),
+                html: createLoginCodeEmailHtml(code)
+            }
+        );
+
     console.log(
         "Correo enviado correctamente por Gmail API:",
+        gmailData.id
+    );
+
+    return gmailData;
+}
+
+/*
+ * =========================================================
+ * CORREO DE RECUPERACIÓN DE CONTRASEÑA
+ * =========================================================
+ */
+
+function createPasswordResetEmailText(
+    resetLink
+) {
+    return [
+        "VeiCloud",
+        "",
+        "Recibimos una solicitud para restablecer tu contraseña.",
+        "",
+        "Abre este enlace para crear una nueva contraseña:",
+        resetLink,
+        "",
+        "Este enlace es temporal.",
+        "",
+        "Si no solicitaste este cambio, puedes ignorar este mensaje."
+    ].join("\n");
+}
+
+function createPasswordResetEmailHtml(
+    resetLink
+) {
+    const safeResetLink =
+        escapeHtml(resetLink);
+
+    return `
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restablecer contraseña de VeiCloud</title>
+</head>
+<body style="margin:0;padding:0;background:#050507;font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#050507;padding:24px 12px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#111116;border-radius:20px;padding:28px;">
+                    <tr>
+                        <td>
+                            <div style="font-size:26px;font-weight:800;color:#ffffff;margin-bottom:18px;">
+                                VeiCloud
+                            </div>
+
+                            <div style="font-size:18px;font-weight:800;color:#ffffff;margin-bottom:12px;">
+                                Restablecer contraseña
+                            </div>
+
+                            <div style="font-size:15px;line-height:22px;color:#c8c8d2;margin-bottom:22px;">
+                                Recibimos una solicitud para restablecer la contraseña de tu cuenta.
+                            </div>
+
+                            <a href="${safeResetLink}" style="display:block;text-decoration:none;background:#E50914;color:#ffffff;font-size:16px;font-weight:800;text-align:center;padding:16px 20px;border-radius:16px;margin-bottom:22px;">
+                                Crear nueva contraseña
+                            </a>
+
+                            <div style="font-size:14px;line-height:22px;color:#b8b8c2;margin-bottom:10px;">
+                                Este enlace es temporal.
+                            </div>
+
+                            <div style="font-size:14px;line-height:22px;color:#b8b8c2;">
+                                Si no solicitaste este cambio, puedes ignorar este mensaje.
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <div style="max-width:520px;margin:14px auto 0;font-size:12px;line-height:18px;color:#777783;text-align:center;">
+                    Mensaje automático de VeiCloud.
+                </div>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    `.trim();
+}
+
+async function sendPasswordResetEmail(
+    email,
+    resetLink
+) {
+    console.log(
+        "Intentando enviar recuperación de contraseña por Gmail API a:",
+        email
+    );
+
+    const gmailData =
+        await sendCustomGmailEmail(
+            {
+                to: email,
+                subject: "Restablecer contraseña de VeiCloud",
+                text: createPasswordResetEmailText(resetLink),
+                html: createPasswordResetEmailHtml(resetLink)
+            }
+        );
+
+    console.log(
+        "Correo de recuperación enviado correctamente:",
         gmailData.id
     );
 
@@ -1030,6 +1265,135 @@ app.post(
                 {
                     ok: false,
                     message: "No se pudo verificar el código."
+                }
+            );
+        }
+    }
+);
+
+/*
+ * =========================================================
+ * RECUPERAR CONTRASEÑA
+ * =========================================================
+ */
+
+app.post(
+    "/api/send-password-reset",
+    async (
+        request,
+        response
+    ) => {
+        try {
+            console.log(
+                "Solicitud recibida en /api/send-password-reset"
+            );
+
+            const email =
+                normalizeEmailAddress(
+                    request.body?.email
+                );
+
+            if (!email) {
+                response.status(400).json(
+                    {
+                        ok: false,
+                        message: "Escribe tu correo electrónico."
+                    }
+                );
+
+                return;
+            }
+
+            if (!isValidEmailAddress(email)) {
+                response.status(400).json(
+                    {
+                        ok: false,
+                        message: "Escribe un correo electrónico válido."
+                    }
+                );
+
+                return;
+            }
+
+            if (!canSendPasswordResetNow(email)) {
+                response.status(429).json(
+                    {
+                        ok: false,
+                        message: "Espera un minuto antes de pedir otro correo."
+                    }
+                );
+
+                return;
+            }
+
+            const firebaseAdminAuth =
+                getFirebaseAdminAuth();
+
+            let resetLink = "";
+
+            try {
+                resetLink =
+                    await firebaseAdminAuth.generatePasswordResetLink(
+                        email
+                    );
+            } catch (
+                error
+            ) {
+                if (error.code === "auth/user-not-found") {
+                    markPasswordResetSent(email);
+
+                    response.setHeader(
+                        "Cache-Control",
+                        "no-store"
+                    );
+
+                    response.json(
+                        {
+                            ok: true,
+                            message: "Si existe una cuenta con ese correo, enviaremos un enlace para restablecer la contraseña."
+                        }
+                    );
+
+                    return;
+                }
+
+                throw error;
+            }
+
+            await sendPasswordResetEmail(
+                email,
+                resetLink
+            );
+
+            markPasswordResetSent(email);
+
+            response.setHeader(
+                "Cache-Control",
+                "no-store"
+            );
+
+            response.json(
+                {
+                    ok: true,
+                    message: "Te enviamos un correo para restablecer tu contraseña."
+                }
+            );
+        } catch (
+            error
+        ) {
+            console.error(
+                "Error enviando recuperación de contraseña:",
+                {
+                    name: error.name,
+                    code: error.code,
+                    message: error.message
+                }
+            );
+
+            response.status(500).json(
+                {
+                    ok: false,
+                    message: `No se pudo enviar el correo de recuperación. ${error.message || ""}`.trim()
                 }
             );
         }
@@ -1650,6 +2014,12 @@ app.listen(
 
         console.log(
             "Envío de códigos conectado por Gmail API HTTPS."
+        );
+
+        console.log(
+            FIREBASE_SERVICE_ACCOUNT_JSON
+                ? "Firebase Admin configurado para recuperación de contraseña."
+                : "Aviso: falta configurar FIREBASE_SERVICE_ACCOUNT_JSON."
         );
 
         console.log(
