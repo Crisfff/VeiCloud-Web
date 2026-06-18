@@ -1,6 +1,7 @@
 const express = require("express");
 const path = require("path");
 const admin = require("firebase-admin");
+const nodemailer = require("nodemailer");
 
 const registerCatalogRoutes = require("./catalog-routes");
 
@@ -22,17 +23,17 @@ const FIREBASE_DATABASE_URL = process.env.FIREBASE_DATABASE_URL;
 
 const FIREBASE_SERVICE_ACCOUNT_JSON = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
-const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID;
+const SMTP_HOST = process.env.SMTP_HOST;
 
-const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
+const SMTP_PORT = process.env.SMTP_PORT || "587";
 
-const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
+const SMTP_USER = process.env.SMTP_USER;
 
-const GMAIL_SENDER_EMAIL = process.env.GMAIL_SENDER_EMAIL;
+const SMTP_PASS = process.env.SMTP_PASS;
 
 const EMAIL_FROM =
     process.env.EMAIL_FROM ||
-    `VeiCloud <${GMAIL_SENDER_EMAIL}>`;
+    "VeiCloud <no-reply@veicloud.online>";
 
 const LOGIN_CODE_DURATION_MS = 5 * 60 * 1000;
 
@@ -358,27 +359,83 @@ function isValidEmailAddress(
 
 /*
  * =========================================================
- * GMAIL API POR HTTPS
+ * BREVO SMTP
  * =========================================================
  */
 
-function requireGmailApiConfiguration() {
-    if (!GMAIL_CLIENT_ID) {
-        throw new Error("Falta configurar GMAIL_CLIENT_ID en Render.");
+function requireSmtpConfiguration() {
+    if (!SMTP_HOST) {
+        throw new Error("Falta configurar SMTP_HOST en Render.");
     }
 
-    if (!GMAIL_CLIENT_SECRET) {
-        throw new Error("Falta configurar GMAIL_CLIENT_SECRET en Render.");
+    if (!SMTP_PORT) {
+        throw new Error("Falta configurar SMTP_PORT en Render.");
     }
 
-    if (!GMAIL_REFRESH_TOKEN) {
-        throw new Error("Falta configurar GMAIL_REFRESH_TOKEN en Render.");
+    if (!SMTP_USER) {
+        throw new Error("Falta configurar SMTP_USER en Render.");
     }
 
-    if (!GMAIL_SENDER_EMAIL) {
-        throw new Error("Falta configurar GMAIL_SENDER_EMAIL en Render.");
+    if (!SMTP_PASS) {
+        throw new Error("Falta configurar SMTP_PASS en Render.");
+    }
+
+    if (!EMAIL_FROM) {
+        throw new Error("Falta configurar EMAIL_FROM en Render.");
     }
 }
+
+function getSmtpTransporter() {
+    requireSmtpConfiguration();
+
+    return nodemailer.createTransport(
+        {
+            host: SMTP_HOST,
+            port: Number(SMTP_PORT),
+            secure: Number(SMTP_PORT) === 465,
+            auth: {
+                user: SMTP_USER,
+                pass: SMTP_PASS
+            }
+        }
+    );
+}
+
+async function sendCustomEmail(
+    {
+        to,
+        subject,
+        text,
+        html
+    }
+) {
+    const transporter =
+        getSmtpTransporter();
+
+    const result =
+        await transporter.sendMail(
+            {
+                from: EMAIL_FROM,
+                to,
+                subject,
+                text,
+                html
+            }
+        );
+
+    console.log(
+        "Correo enviado correctamente por Brevo SMTP:",
+        result.messageId
+    );
+
+    return result;
+}
+
+/*
+ * =========================================================
+ * UTILIDADES DE CORREO
+ * =========================================================
+ */
 
 function generateFourDigitCode() {
     return String(
@@ -406,14 +463,6 @@ function maskEmail(
     return `${name.slice(0, 2)}***@${domain}`;
 }
 
-function sanitizeHeader(
-    value
-) {
-    return String(value || "")
-        .replace(/[\r\n]+/g, " ")
-        .trim();
-}
-
 function escapeHtml(
     value
 ) {
@@ -422,187 +471,6 @@ function escapeHtml(
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
-}
-
-function encodeMimeHeader(
-    value
-) {
-    return `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
-}
-
-function encodeBase64Url(
-    value
-) {
-    return Buffer
-        .from(value, "utf8")
-        .toString("base64")
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/g, "");
-}
-
-function encodeBodyBase64(
-    value
-) {
-    return Buffer
-        .from(value, "utf8")
-        .toString("base64")
-        .match(/.{1,76}/g)
-        ?.join("\r\n") || "";
-}
-
-async function getGmailAccessToken() {
-    requireGmailApiConfiguration();
-
-    const tokenResponse = await fetch(
-        "https://oauth2.googleapis.com/token",
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                Accept: "application/json"
-            },
-            body:
-                new URLSearchParams(
-                    {
-                        client_id: GMAIL_CLIENT_ID,
-                        client_secret: GMAIL_CLIENT_SECRET,
-                        refresh_token: GMAIL_REFRESH_TOKEN,
-                        grant_type: "refresh_token"
-                    }
-                ).toString()
-        }
-    );
-
-    const tokenData = await tokenResponse.json();
-
-    if (!tokenResponse.ok) {
-        throw new Error(
-            tokenData?.error_description ||
-            tokenData?.error ||
-            "No se pudo renovar el token de Gmail."
-        );
-    }
-
-    if (!tokenData.access_token) {
-        throw new Error("Google no devolvió access_token.");
-    }
-
-    return tokenData.access_token;
-}
-
-function createRawCustomGmailMessage(
-    {
-        to,
-        subject,
-        text,
-        html
-    }
-) {
-    const boundary =
-        `veicloud_boundary_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-
-    const cleanTo =
-        sanitizeHeader(to);
-
-    const cleanFrom =
-        sanitizeHeader(EMAIL_FROM);
-
-    const cleanReplyTo =
-        sanitizeHeader(GMAIL_SENDER_EMAIL);
-
-    const encodedSubject =
-        encodeMimeHeader(subject);
-
-    const textBody =
-        encodeBodyBase64(text);
-
-    const htmlBody =
-        encodeBodyBase64(html);
-
-    const rawMessage = [
-        `From: ${cleanFrom}`,
-        `To: ${cleanTo}`,
-        `Reply-To: ${cleanReplyTo}`,
-        `Subject: ${encodedSubject}`,
-        "MIME-Version: 1.0",
-        `Date: ${new Date().toUTCString()}`,
-        "Auto-Submitted: auto-generated",
-        "X-Auto-Response-Suppress: All",
-        `Content-Type: multipart/alternative; boundary="${boundary}"`,
-        "",
-        `--${boundary}`,
-        "Content-Type: text/plain; charset=UTF-8",
-        "Content-Transfer-Encoding: base64",
-        "",
-        textBody,
-        "",
-        `--${boundary}`,
-        "Content-Type: text/html; charset=UTF-8",
-        "Content-Transfer-Encoding: base64",
-        "",
-        htmlBody,
-        "",
-        `--${boundary}--`
-    ].join("\r\n");
-
-    return encodeBase64Url(rawMessage);
-}
-
-async function sendCustomGmailEmail(
-    {
-        to,
-        subject,
-        text,
-        html
-    }
-) {
-    const accessToken =
-        await getGmailAccessToken();
-
-    const raw =
-        createRawCustomGmailMessage(
-            {
-                to,
-                subject,
-                text,
-                html
-            }
-        );
-
-    const gmailResponse =
-        await fetch(
-            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
-            {
-                method: "POST",
-                headers: {
-                    Authorization:
-                        `Bearer ${accessToken}`,
-                    "Content-Type":
-                        "application/json",
-                    Accept:
-                        "application/json"
-                },
-                body:
-                    JSON.stringify(
-                        {
-                            raw
-                        }
-                    )
-            }
-        );
-
-    const gmailData =
-        await gmailResponse.json();
-
-    if (!gmailResponse.ok) {
-        throw new Error(
-            gmailData?.error?.message ||
-            "Gmail API no pudo enviar el correo."
-        );
-    }
-
-    return gmailData;
 }
 
 /*
@@ -688,26 +556,18 @@ async function sendLoginCodeEmail(
     code
 ) {
     console.log(
-        "Intentando enviar código por Gmail API a:",
+        "Intentando enviar código de inicio por Brevo SMTP a:",
         email
     );
 
-    const gmailData =
-        await sendCustomGmailEmail(
-            {
-                to: email,
-                subject: "Código de verificación de VeiCloud",
-                text: createLoginCodeEmailText(code),
-                html: createLoginCodeEmailHtml(code)
-            }
-        );
-
-    console.log(
-        "Correo enviado correctamente por Gmail API:",
-        gmailData.id
+    return sendCustomEmail(
+        {
+            to: email,
+            subject: "Código de verificación de VeiCloud",
+            text: createLoginCodeEmailText(code),
+            html: createLoginCodeEmailHtml(code)
+        }
     );
-
-    return gmailData;
 }
 
 /*
@@ -797,26 +657,18 @@ async function sendPasswordResetCodeEmail(
     code
 ) {
     console.log(
-        "Intentando enviar código de recuperación por Gmail API a:",
+        "Intentando enviar código de recuperación por Brevo SMTP a:",
         email
     );
 
-    const gmailData =
-        await sendCustomGmailEmail(
-            {
-                to: email,
-                subject: "Código para restablecer contraseña de VeiCloud",
-                text: createPasswordResetCodeEmailText(code),
-                html: createPasswordResetCodeEmailHtml(code)
-            }
-        );
-
-    console.log(
-        "Correo de recuperación enviado correctamente:",
-        gmailData.id
+    return sendCustomEmail(
+        {
+            to: email,
+            subject: "Código para restablecer contraseña de VeiCloud",
+            text: createPasswordResetCodeEmailText(code),
+            html: createPasswordResetCodeEmailHtml(code)
+        }
     );
-
-    return gmailData;
 }
 
 /*
@@ -1101,8 +953,6 @@ app.post(
                 {
                     name: error.name,
                     code: error.code,
-                    status: error.status,
-                    response: error.response,
                     responseCode: error.responseCode,
                     message: error.message
                 }
@@ -1111,7 +961,7 @@ app.post(
             response.status(500).json(
                 {
                     ok: false,
-                    message: `No se pudo enviar el código. ${error.message || "Revisa Gmail API."}`
+                    message: `No se pudo enviar el código. ${error.message || "Revisa Brevo SMTP."}`
                 }
             );
         }
@@ -1258,9 +1108,6 @@ app.post(
                 {
                     name: error.name,
                     code: error.code,
-                    status: error.status,
-                    response: error.response,
-                    responseCode: error.responseCode,
                     message: error.message
                 }
             );
@@ -1422,8 +1269,8 @@ app.post(
                 {
                     name: error.name,
                     code: error.code,
-                    message: error.message,
-                    stack: error.stack
+                    responseCode: error.responseCode,
+                    message: error.message
                 }
             );
 
@@ -1600,8 +1447,7 @@ app.post(
                 {
                     name: error.name,
                     code: error.code,
-                    message: error.message,
-                    stack: error.stack
+                    message: error.message
                 }
             );
 
@@ -2222,19 +2068,15 @@ app.listen(
         );
 
         console.log(
-            GMAIL_SENDER_EMAIL
-                ? `Gmail API configurado para: ${GMAIL_SENDER_EMAIL}`
-                : "Aviso: falta configurar GMAIL_SENDER_EMAIL."
-        );
-
-        console.log(
-            "Envío de códigos conectado por Gmail API HTTPS."
-        );
-
-        console.log(
             FIREBASE_SERVICE_ACCOUNT_JSON
-                ? "Firebase Admin configurado para recuperación de contraseña."
+                ? "Firebase Admin configurado."
                 : "Aviso: falta configurar FIREBASE_SERVICE_ACCOUNT_JSON."
+        );
+
+        console.log(
+            SMTP_HOST && SMTP_USER && SMTP_PASS
+                ? "Brevo SMTP configurado para envío de correos."
+                : "Aviso: falta configurar SMTP_HOST, SMTP_USER o SMTP_PASS."
         );
 
         console.log(
