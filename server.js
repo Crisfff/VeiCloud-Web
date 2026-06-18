@@ -1,5 +1,6 @@
 const express = require("express");
 const path = require("path");
+const crypto = require("crypto");
 const admin = require("firebase-admin");
 
 const registerCatalogRoutes = require("./catalog-routes");
@@ -26,7 +27,15 @@ const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
 const EMAIL_FROM =
     process.env.EMAIL_FROM ||
-    "VeiCloud <crisdeyvid00@gmail.com>";
+    "VeiCloud <no-reply@veicloud.online>";
+
+const PUBLIC_BASE_URL =
+    process.env.PUBLIC_BASE_URL ||
+    "https://veicloud.online";
+
+const APP_DEEP_LINK =
+    process.env.APP_DEEP_LINK ||
+    "veicloud://login";
 
 const LOGIN_CODE_DURATION_MS = 5 * 60 * 1000;
 
@@ -34,15 +43,15 @@ const LOGIN_CODE_RESEND_COOLDOWN_MS = 60 * 1000;
 
 const LOGIN_CODE_MAX_ATTEMPTS = 5;
 
-const PASSWORD_RESET_CODE_DURATION_MS = 10 * 60 * 1000;
+const PASSWORD_RESET_LINK_DURATION_MS = 15 * 60 * 1000;
 
 const PASSWORD_RESET_RESEND_COOLDOWN_MS = 60 * 1000;
 
-const PASSWORD_RESET_MAX_ATTEMPTS = 5;
-
 const loginCodesByUid = new Map();
 
-const passwordResetCodesByEmail = new Map();
+const passwordResetLinksByEmail = new Map();
+
+const passwordResetLinksByToken = new Map();
 
 /*
  * =========================================================
@@ -143,14 +152,16 @@ function parseCookies(
                     return cookies;
                 }
 
-                const name = part.slice(
-                    0,
-                    separatorIndex
-                );
+                const name =
+                    part.slice(
+                        0,
+                        separatorIndex
+                    );
 
-                const rawValue = part.slice(
-                    separatorIndex + 1
-                );
+                const rawValue =
+                    part.slice(
+                        separatorIndex + 1
+                    );
 
                 try {
                     cookies[name] =
@@ -478,7 +489,7 @@ async function sendCustomEmail(
 
 /*
  * =========================================================
- * UTILIDADES DE CORREO
+ * UTILIDADES
  * =========================================================
  */
 
@@ -489,6 +500,12 @@ function generateFourDigitCode() {
             Math.random() * 9000
         )
     );
+}
+
+function generateResetToken() {
+    return crypto
+        .randomBytes(32)
+        .toString("hex");
 }
 
 function maskEmail(
@@ -517,6 +534,46 @@ function escapeHtml(
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
+}
+
+function getPublicBaseUrl() {
+    return String(PUBLIC_BASE_URL || "")
+        .replace(/\/+$/, "");
+}
+
+function createPasswordResetUrl(
+    token
+) {
+    return `${getPublicBaseUrl()}/reset-password.html?token=${encodeURIComponent(token)}`;
+}
+
+function cleanupExpiredPasswordResetLinks() {
+    const now =
+        Date.now();
+
+    for (
+        const [
+            token,
+            resetData
+        ] of passwordResetLinksByToken.entries()
+    ) {
+        if (
+            !resetData ||
+            resetData.expiresAt < now ||
+            resetData.used === true
+        ) {
+            passwordResetLinksByToken.delete(token);
+
+            if (resetData?.email) {
+                const emailReset =
+                    passwordResetLinksByEmail.get(resetData.email);
+
+                if (emailReset?.token === token) {
+                    passwordResetLinksByEmail.delete(resetData.email);
+                }
+            }
+        }
+    }
 }
 
 /*
@@ -618,30 +675,32 @@ async function sendLoginCodeEmail(
 
 /*
  * =========================================================
- * CORREO DE RECUPERACIÓN DE CONTRASEÑA
+ * CORREO DE RECUPERACIÓN CON ENLACE
  * =========================================================
  */
 
-function createPasswordResetCodeEmailText(
-    code
+function createPasswordResetLinkEmailText(
+    resetUrl
 ) {
     return [
         "VeiCloud",
         "",
-        `Tu código para restablecer la contraseña es: ${code}`,
+        "Recibimos una solicitud para restablecer tu contraseña.",
         "",
-        "Este código vence en 10 minutos.",
-        "No compartas este código con nadie.",
+        "Abre este enlace para crear una nueva contraseña:",
+        resetUrl,
+        "",
+        "Este enlace vence en 15 minutos y solo se puede usar una vez.",
         "",
         "Si no solicitaste este cambio, puedes ignorar este mensaje."
     ].join("\n");
 }
 
-function createPasswordResetCodeEmailHtml(
-    code
+function createPasswordResetLinkEmailHtml(
+    resetUrl
 ) {
-    const safeCode =
-        escapeHtml(code);
+    const safeResetUrl =
+        escapeHtml(resetUrl);
 
     return `
 <!doctype html>
@@ -666,18 +725,16 @@ function createPasswordResetCodeEmailHtml(
                                 Restablecer contraseña
                             </div>
 
-                            <div style="font-size:15px;line-height:22px;color:#c8c8d2;margin-bottom:18px;">
-                                Usa este código para continuar con el cambio de contraseña:
+                            <div style="font-size:15px;line-height:22px;color:#c8c8d2;margin-bottom:22px;">
+                                Recibimos una solicitud para restablecer la contraseña de tu cuenta.
                             </div>
 
-                            <div style="background:#18181f;border-radius:16px;padding:18px;text-align:center;margin-bottom:18px;">
-                                <span style="font-size:38px;font-weight:900;letter-spacing:8px;color:#E50914;">
-                                    ${safeCode}
-                                </span>
-                            </div>
+                            <a href="${safeResetUrl}" style="display:block;text-decoration:none;background:#E50914;color:#ffffff;font-size:16px;font-weight:800;text-align:center;padding:16px 20px;border-radius:16px;margin-bottom:22px;">
+                                Crear nueva contraseña
+                            </a>
 
                             <div style="font-size:14px;line-height:22px;color:#b8b8c2;margin-bottom:10px;">
-                                Este código vence en 10 minutos.
+                                Este enlace vence en 15 minutos y solo se puede usar una vez.
                             </div>
 
                             <div style="font-size:14px;line-height:22px;color:#b8b8c2;">
@@ -698,21 +755,21 @@ function createPasswordResetCodeEmailHtml(
     `.trim();
 }
 
-async function sendPasswordResetCodeEmail(
+async function sendPasswordResetLinkEmail(
     email,
-    code
+    resetUrl
 ) {
     console.log(
-        "Intentando enviar código de recuperación por Brevo API a:",
+        "Intentando enviar enlace de recuperación por Brevo API a:",
         email
     );
 
     return sendCustomEmail(
         {
             to: email,
-            subject: "Código para restablecer contraseña de VeiCloud",
-            text: createPasswordResetCodeEmailText(code),
-            html: createPasswordResetCodeEmailHtml(code)
+            subject: "Restablecer contraseña de VeiCloud",
+            text: createPasswordResetLinkEmailText(resetUrl),
+            html: createPasswordResetLinkEmailHtml(resetUrl)
         }
     );
 }
@@ -908,7 +965,7 @@ async function getAuthenticatedFirebaseSession(
 
 /*
  * =========================================================
- * CÓDIGO DE 4 DÍGITOS PARA ANDROID
+ * CÓDIGO DE INICIO PARA ANDROID
  * =========================================================
  */
 
@@ -1191,7 +1248,7 @@ app.post(
 
 /*
  * =========================================================
- * RECUPERAR CONTRASEÑA
+ * RECUPERAR CONTRASEÑA CON LINK
  * =========================================================
  */
 
@@ -1205,6 +1262,8 @@ app.post(
             console.log(
                 "Solicitud recibida en /api/send-password-reset"
             );
+
+            cleanupExpiredPasswordResetLinks();
 
             const email =
                 normalizeEmailAddress(
@@ -1234,7 +1293,7 @@ app.post(
             }
 
             const activeResetData =
-                passwordResetCodesByEmail.get(email);
+                passwordResetLinksByEmail.get(email);
 
             if (
                 activeResetData &&
@@ -1244,7 +1303,7 @@ app.post(
                 response.status(429).json(
                     {
                         ok: false,
-                        message: "Espera un minuto antes de pedir otro código."
+                        message: "Espera un minuto antes de pedir otro enlace."
                     }
                 );
 
@@ -1274,7 +1333,7 @@ app.post(
                     response.json(
                         {
                             ok: true,
-                            message: "Si existe una cuenta con ese correo, enviaremos un código para restablecer la contraseña."
+                            message: "Si existe una cuenta con ese correo, enviaremos un enlace para restablecer la contraseña."
                         }
                     );
 
@@ -1295,27 +1354,44 @@ app.post(
                 return;
             }
 
-            const code =
-                generateFourDigitCode();
+            const oldResetData =
+                passwordResetLinksByEmail.get(email);
+
+            if (oldResetData?.token) {
+                passwordResetLinksByToken.delete(oldResetData.token);
+            }
+
+            const token =
+                generateResetToken();
 
             const now =
                 Date.now();
 
-            passwordResetCodesByEmail.set(
+            const resetData = {
+                token,
+                uid: firebaseUser.uid,
                 email,
-                {
-                    uid: firebaseUser.uid,
-                    email,
-                    code,
-                    createdAt: now,
-                    expiresAt: now + PASSWORD_RESET_CODE_DURATION_MS,
-                    attempts: 0
-                }
+                createdAt: now,
+                expiresAt: now + PASSWORD_RESET_LINK_DURATION_MS,
+                used: false
+            };
+
+            passwordResetLinksByEmail.set(
+                email,
+                resetData
             );
 
-            await sendPasswordResetCodeEmail(
+            passwordResetLinksByToken.set(
+                token,
+                resetData
+            );
+
+            const resetUrl =
+                createPasswordResetUrl(token);
+
+            await sendPasswordResetLinkEmail(
                 email,
-                code
+                resetUrl
             );
 
             response.setHeader(
@@ -1326,7 +1402,7 @@ app.post(
             response.json(
                 {
                     ok: true,
-                    message: "Te enviamos un código para restablecer tu contraseña."
+                    message: "Te enviamos un enlace para restablecer tu contraseña."
                 }
             );
         } catch (
@@ -1358,50 +1434,23 @@ app.post(
         response
     ) => {
         try {
-            const email =
-                normalizeEmailAddress(
-                    request.body?.email
-                );
+            cleanupExpiredPasswordResetLinks();
 
-            const code =
+            const token =
                 String(
-                    request.body?.code || ""
-                )
-                    .trim()
-                    .replace(/\D/g, "");
+                    request.body?.token || ""
+                ).trim();
 
             const newPassword =
                 String(
                     request.body?.newPassword || ""
                 );
 
-            if (!email) {
+            if (!token) {
                 response.status(400).json(
                     {
                         ok: false,
-                        message: "Escribe tu correo electrónico."
-                    }
-                );
-
-                return;
-            }
-
-            if (!isValidEmailAddress(email)) {
-                response.status(400).json(
-                    {
-                        ok: false,
-                        message: "Escribe un correo electrónico válido."
-                    }
-                );
-
-                return;
-            }
-
-            if (code.length !== 4) {
-                response.status(400).json(
-                    {
-                        ok: false,
-                        message: "Escribe el código de 4 dígitos."
+                        message: "El enlace no es válido."
                     }
                 );
 
@@ -1419,62 +1468,47 @@ app.post(
                 return;
             }
 
-            const savedResetData =
-                passwordResetCodesByEmail.get(email);
+            const resetData =
+                passwordResetLinksByToken.get(token);
 
-            if (!savedResetData) {
+            if (!resetData) {
                 response.status(404).json(
                     {
                         ok: false,
-                        message: "No hay código activo. Solicita uno nuevo."
+                        message: "El enlace no existe o ya fue usado."
                     }
                 );
 
                 return;
             }
 
-            if (savedResetData.expiresAt < Date.now()) {
-                passwordResetCodesByEmail.delete(
-                    email
-                );
+            if (resetData.used === true) {
+                passwordResetLinksByToken.delete(token);
 
                 response.status(410).json(
                     {
                         ok: false,
-                        message: "El código venció. Solicita uno nuevo."
+                        message: "Este enlace ya fue usado."
                     }
                 );
 
                 return;
             }
 
-            if (savedResetData.attempts >= PASSWORD_RESET_MAX_ATTEMPTS) {
-                passwordResetCodesByEmail.delete(
-                    email
-                );
+            if (resetData.expiresAt < Date.now()) {
+                passwordResetLinksByToken.delete(token);
 
-                response.status(429).json(
+                const emailReset =
+                    passwordResetLinksByEmail.get(resetData.email);
+
+                if (emailReset?.token === token) {
+                    passwordResetLinksByEmail.delete(resetData.email);
+                }
+
+                response.status(410).json(
                     {
                         ok: false,
-                        message: "Demasiados intentos. Solicita un código nuevo."
-                    }
-                );
-
-                return;
-            }
-
-            if (savedResetData.code !== code) {
-                savedResetData.attempts += 1;
-
-                passwordResetCodesByEmail.set(
-                    email,
-                    savedResetData
-                );
-
-                response.status(400).json(
-                    {
-                        ok: false,
-                        message: "Código incorrecto."
+                        message: "El enlace venció. Solicita uno nuevo."
                     }
                 );
 
@@ -1485,15 +1519,22 @@ app.post(
                 getFirebaseAdminAuth();
 
             await firebaseAdminAuth.updateUser(
-                savedResetData.uid,
+                resetData.uid,
                 {
                     password: newPassword
                 }
             );
 
-            passwordResetCodesByEmail.delete(
-                email
-            );
+            resetData.used = true;
+
+            passwordResetLinksByToken.delete(token);
+
+            const emailReset =
+                passwordResetLinksByEmail.get(resetData.email);
+
+            if (emailReset?.token === token) {
+                passwordResetLinksByEmail.delete(resetData.email);
+            }
 
             response.setHeader(
                 "Cache-Control",
@@ -1503,7 +1544,9 @@ app.post(
             response.json(
                 {
                     ok: true,
-                    message: "Contraseña actualizada correctamente."
+                    message: "Contraseña actualizada correctamente.",
+                    appUrl: APP_DEEP_LINK,
+                    fallbackUrl: `${getPublicBaseUrl()}/login.html`
                 }
             );
         } catch (
