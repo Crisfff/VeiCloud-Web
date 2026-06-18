@@ -40,11 +40,15 @@ const LOGIN_CODE_RESEND_COOLDOWN_MS = 60 * 1000;
 
 const LOGIN_CODE_MAX_ATTEMPTS = 5;
 
+const PASSWORD_RESET_CODE_DURATION_MS = 10 * 60 * 1000;
+
 const PASSWORD_RESET_RESEND_COOLDOWN_MS = 60 * 1000;
+
+const PASSWORD_RESET_MAX_ATTEMPTS = 5;
 
 const loginCodesByUid = new Map();
 
-const passwordResetRequestsByEmail = new Map();
+const passwordResetCodesByEmail = new Map();
 
 /*
  * =========================================================
@@ -350,24 +354,6 @@ function isValidEmailAddress(
     email
 ) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function canSendPasswordResetNow(
-    email
-) {
-    const lastRequestAt =
-        passwordResetRequestsByEmail.get(email) || 0;
-
-    return Date.now() - lastRequestAt >= PASSWORD_RESET_RESEND_COOLDOWN_MS;
-}
-
-function markPasswordResetSent(
-    email
-) {
-    passwordResetRequestsByEmail.set(
-        email,
-        Date.now()
-    );
 }
 
 /*
@@ -730,28 +716,26 @@ async function sendLoginCodeEmail(
  * =========================================================
  */
 
-function createPasswordResetEmailText(
-    resetLink
+function createPasswordResetCodeEmailText(
+    code
 ) {
     return [
         "VeiCloud",
         "",
-        "Recibimos una solicitud para restablecer tu contraseña.",
+        `Tu código para restablecer la contraseña es: ${code}`,
         "",
-        "Abre este enlace para crear una nueva contraseña:",
-        resetLink,
-        "",
-        "Este enlace es temporal.",
+        "Este código vence en 10 minutos.",
+        "No compartas este código con nadie.",
         "",
         "Si no solicitaste este cambio, puedes ignorar este mensaje."
     ].join("\n");
 }
 
-function createPasswordResetEmailHtml(
-    resetLink
+function createPasswordResetCodeEmailHtml(
+    code
 ) {
-    const safeResetLink =
-        escapeHtml(resetLink);
+    const safeCode =
+        escapeHtml(code);
 
     return `
 <!doctype html>
@@ -776,16 +760,18 @@ function createPasswordResetEmailHtml(
                                 Restablecer contraseña
                             </div>
 
-                            <div style="font-size:15px;line-height:22px;color:#c8c8d2;margin-bottom:22px;">
-                                Recibimos una solicitud para restablecer la contraseña de tu cuenta.
+                            <div style="font-size:15px;line-height:22px;color:#c8c8d2;margin-bottom:18px;">
+                                Usa este código para continuar con el cambio de contraseña:
                             </div>
 
-                            <a href="${safeResetLink}" style="display:block;text-decoration:none;background:#E50914;color:#ffffff;font-size:16px;font-weight:800;text-align:center;padding:16px 20px;border-radius:16px;margin-bottom:22px;">
-                                Crear nueva contraseña
-                            </a>
+                            <div style="background:#18181f;border-radius:16px;padding:18px;text-align:center;margin-bottom:18px;">
+                                <span style="font-size:38px;font-weight:900;letter-spacing:8px;color:#E50914;">
+                                    ${safeCode}
+                                </span>
+                            </div>
 
                             <div style="font-size:14px;line-height:22px;color:#b8b8c2;margin-bottom:10px;">
-                                Este enlace es temporal.
+                                Este código vence en 10 minutos.
                             </div>
 
                             <div style="font-size:14px;line-height:22px;color:#b8b8c2;">
@@ -806,12 +792,12 @@ function createPasswordResetEmailHtml(
     `.trim();
 }
 
-async function sendPasswordResetEmail(
+async function sendPasswordResetCodeEmail(
     email,
-    resetLink
+    code
 ) {
     console.log(
-        "Intentando enviar recuperación de contraseña por Gmail API a:",
+        "Intentando enviar código de recuperación por Gmail API a:",
         email
     );
 
@@ -819,9 +805,9 @@ async function sendPasswordResetEmail(
         await sendCustomGmailEmail(
             {
                 to: email,
-                subject: "Restablecer contraseña de VeiCloud",
-                text: createPasswordResetEmailText(resetLink),
-                html: createPasswordResetEmailHtml(resetLink)
+                subject: "Código para restablecer contraseña de VeiCloud",
+                text: createPasswordResetCodeEmailText(code),
+                html: createPasswordResetCodeEmailHtml(code)
             }
         );
 
@@ -1333,11 +1319,18 @@ app.post(
                 return;
             }
 
-            if (!canSendPasswordResetNow(email)) {
+            const activeResetData =
+                passwordResetCodesByEmail.get(email);
+
+            if (
+                activeResetData &&
+                activeResetData.expiresAt > Date.now() &&
+                Date.now() - activeResetData.createdAt < PASSWORD_RESET_RESEND_COOLDOWN_MS
+            ) {
                 response.status(429).json(
                     {
                         ok: false,
-                        message: "Espera un minuto antes de pedir otro correo."
+                        message: "Espera un minuto antes de pedir otro código."
                     }
                 );
 
@@ -1347,25 +1340,17 @@ app.post(
             const firebaseAdminAuth =
                 getFirebaseAdminAuth();
 
-            const actionCodeSettings = {
-                url: "https://veicloud.online/login.html",
-                handleCodeInApp: false
-            };
-
-            let resetLink = "";
+            let firebaseUser = null;
 
             try {
-                resetLink =
-                    await firebaseAdminAuth.generatePasswordResetLink(
-                        email,
-                        actionCodeSettings
+                firebaseUser =
+                    await firebaseAdminAuth.getUserByEmail(
+                        email
                     );
             } catch (
                 error
             ) {
                 if (error.code === "auth/user-not-found") {
-                    markPasswordResetSent(email);
-
                     response.setHeader(
                         "Cache-Control",
                         "no-store"
@@ -1374,7 +1359,7 @@ app.post(
                     response.json(
                         {
                             ok: true,
-                            message: "Si existe una cuenta con ese correo, enviaremos un enlace para restablecer la contraseña."
+                            message: "Si existe una cuenta con ese correo, enviaremos un código para restablecer la contraseña."
                         }
                     );
 
@@ -1384,12 +1369,39 @@ app.post(
                 throw error;
             }
 
-            await sendPasswordResetEmail(
+            if (!firebaseUser || !firebaseUser.uid) {
+                response.status(404).json(
+                    {
+                        ok: false,
+                        message: "No se pudo encontrar la cuenta."
+                    }
+                );
+
+                return;
+            }
+
+            const code =
+                generateFourDigitCode();
+
+            const now =
+                Date.now();
+
+            passwordResetCodesByEmail.set(
                 email,
-                resetLink
+                {
+                    uid: firebaseUser.uid,
+                    email,
+                    code,
+                    createdAt: now,
+                    expiresAt: now + PASSWORD_RESET_CODE_DURATION_MS,
+                    attempts: 0
+                }
             );
 
-            markPasswordResetSent(email);
+            await sendPasswordResetCodeEmail(
+                email,
+                code
+            );
 
             response.setHeader(
                 "Cache-Control",
@@ -1399,7 +1411,7 @@ app.post(
             response.json(
                 {
                     ok: true,
-                    message: "Te enviamos un correo para restablecer tu contraseña."
+                    message: "Te enviamos un código para restablecer tu contraseña."
                 }
             );
         } catch (
@@ -1410,7 +1422,8 @@ app.post(
                 {
                     name: error.name,
                     code: error.code,
-                    message: error.message
+                    message: error.message,
+                    stack: error.stack
                 }
             );
 
@@ -1418,6 +1431,184 @@ app.post(
                 {
                     ok: false,
                     message: `No se pudo enviar el correo de recuperación. ${error.message || ""}`.trim()
+                }
+            );
+        }
+    }
+);
+
+app.post(
+    "/api/confirm-password-reset",
+    async (
+        request,
+        response
+    ) => {
+        try {
+            const email =
+                normalizeEmailAddress(
+                    request.body?.email
+                );
+
+            const code =
+                String(
+                    request.body?.code || ""
+                )
+                    .trim()
+                    .replace(/\D/g, "");
+
+            const newPassword =
+                String(
+                    request.body?.newPassword || ""
+                );
+
+            if (!email) {
+                response.status(400).json(
+                    {
+                        ok: false,
+                        message: "Escribe tu correo electrónico."
+                    }
+                );
+
+                return;
+            }
+
+            if (!isValidEmailAddress(email)) {
+                response.status(400).json(
+                    {
+                        ok: false,
+                        message: "Escribe un correo electrónico válido."
+                    }
+                );
+
+                return;
+            }
+
+            if (code.length !== 4) {
+                response.status(400).json(
+                    {
+                        ok: false,
+                        message: "Escribe el código de 4 dígitos."
+                    }
+                );
+
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                response.status(400).json(
+                    {
+                        ok: false,
+                        message: "La nueva contraseña debe tener al menos 6 caracteres."
+                    }
+                );
+
+                return;
+            }
+
+            const savedResetData =
+                passwordResetCodesByEmail.get(email);
+
+            if (!savedResetData) {
+                response.status(404).json(
+                    {
+                        ok: false,
+                        message: "No hay código activo. Solicita uno nuevo."
+                    }
+                );
+
+                return;
+            }
+
+            if (savedResetData.expiresAt < Date.now()) {
+                passwordResetCodesByEmail.delete(
+                    email
+                );
+
+                response.status(410).json(
+                    {
+                        ok: false,
+                        message: "El código venció. Solicita uno nuevo."
+                    }
+                );
+
+                return;
+            }
+
+            if (savedResetData.attempts >= PASSWORD_RESET_MAX_ATTEMPTS) {
+                passwordResetCodesByEmail.delete(
+                    email
+                );
+
+                response.status(429).json(
+                    {
+                        ok: false,
+                        message: "Demasiados intentos. Solicita un código nuevo."
+                    }
+                );
+
+                return;
+            }
+
+            if (savedResetData.code !== code) {
+                savedResetData.attempts += 1;
+
+                passwordResetCodesByEmail.set(
+                    email,
+                    savedResetData
+                );
+
+                response.status(400).json(
+                    {
+                        ok: false,
+                        message: "Código incorrecto."
+                    }
+                );
+
+                return;
+            }
+
+            const firebaseAdminAuth =
+                getFirebaseAdminAuth();
+
+            await firebaseAdminAuth.updateUser(
+                savedResetData.uid,
+                {
+                    password: newPassword
+                }
+            );
+
+            passwordResetCodesByEmail.delete(
+                email
+            );
+
+            response.setHeader(
+                "Cache-Control",
+                "no-store"
+            );
+
+            response.json(
+                {
+                    ok: true,
+                    message: "Contraseña actualizada correctamente."
+                }
+            );
+        } catch (
+            error
+        ) {
+            console.error(
+                "Error confirmando recuperación de contraseña:",
+                {
+                    name: error.name,
+                    code: error.code,
+                    message: error.message,
+                    stack: error.stack
+                }
+            );
+
+            response.status(500).json(
+                {
+                    ok: false,
+                    message: `No se pudo actualizar la contraseña. ${error.message || ""}`.trim()
                 }
             );
         }
