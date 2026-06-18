@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "express": "4.21.2",
+    "firebase-admin": "latest",
     "nodemailer": "^6.9.16"
   }
 }
