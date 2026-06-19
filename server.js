@@ -247,8 +247,12 @@ function clearSessionCookies(
     response.setHeader(
         "Set-Cookie",
         [
-            createExpiredCookie(ID_TOKEN_COOKIE_NAME),
-            createExpiredCookie(REFRESH_TOKEN_COOKIE_NAME)
+            createExpiredCookie(
+                ID_TOKEN_COOKIE_NAME
+            ),
+            createExpiredCookie(
+                REFRESH_TOKEN_COOKIE_NAME
+            )
         ]
     );
 }
@@ -312,7 +316,7 @@ function parseBoolean(
 
 /*
  * =========================================================
- * FIREBASE ADMIN MODERNO
+ * FIREBASE ADMIN
  * =========================================================
  */
 
@@ -709,7 +713,9 @@ async function sendCustomEmail(
     requireBrevoConfiguration();
 
     const sender =
-        parseEmailFrom(EMAIL_FROM);
+        parseEmailFrom(
+            EMAIL_FROM
+        );
 
     if (!isValidEmailAddress(sender.email)) {
         throw new Error("EMAIL_FROM no tiene un correo válido.");
@@ -843,14 +849,20 @@ function cleanupExpiredPasswordResetLinks() {
             resetData.expiresAt < now ||
             resetData.used === true
         ) {
-            passwordResetLinksByToken.delete(token);
+            passwordResetLinksByToken.delete(
+                token
+            );
 
             if (resetData?.email) {
                 const emailReset =
-                    passwordResetLinksByEmail.get(resetData.email);
+                    passwordResetLinksByEmail.get(
+                        resetData.email
+                    );
 
                 if (emailReset?.token === token) {
-                    passwordResetLinksByEmail.delete(resetData.email);
+                    passwordResetLinksByEmail.delete(
+                        resetData.email
+                    );
                 }
             }
         }
@@ -882,7 +894,9 @@ function createLoginCodeEmailHtml(
     code
 ) {
     const safeCode =
-        escapeHtml(code);
+        escapeHtml(
+            code
+        );
 
     return `
 <!doctype html>
@@ -948,8 +962,12 @@ async function sendLoginCodeEmail(
         {
             to: email,
             subject: "Código de verificación de VeiCloud",
-            text: createLoginCodeEmailText(code),
-            html: createLoginCodeEmailHtml(code)
+            text: createLoginCodeEmailText(
+                code
+            ),
+            html: createLoginCodeEmailHtml(
+                code
+            )
         }
     );
 }
@@ -981,7 +999,9 @@ function createPasswordResetLinkEmailHtml(
     resetUrl
 ) {
     const safeResetUrl =
-        escapeHtml(resetUrl);
+        escapeHtml(
+            resetUrl
+        );
 
     return `
 <!doctype html>
@@ -1049,8 +1069,121 @@ async function sendPasswordResetLinkEmail(
         {
             to: email,
             subject: "Restablecer contraseña de VeiCloud",
-            text: createPasswordResetLinkEmailText(resetUrl),
-            html: createPasswordResetLinkEmailHtml(resetUrl)
+            text: createPasswordResetLinkEmailText(
+                resetUrl
+            ),
+            html: createPasswordResetLinkEmailHtml(
+                resetUrl
+            )
+        }
+    );
+}
+
+/*
+ * =========================================================
+ * CORREO DE BIENVENIDA
+ * =========================================================
+ */
+
+function createWelcomeEmailText(
+    email
+) {
+    return [
+        "VeiCloud",
+        "",
+        "Bienvenido a VeiCloud.",
+        "",
+        "Tu cuenta fue creada correctamente.",
+        "",
+        `Correo registrado: ${email}`,
+        "",
+        "Ya puedes elegir tu perfil y comenzar a disfrutar tu contenido.",
+        "",
+        "Gracias por formar parte de VeiCloud."
+    ].join("\n");
+}
+
+function createWelcomeEmailHtml(
+    email
+) {
+    const safeEmail =
+        escapeHtml(
+            email
+        );
+
+    return `
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenido a VeiCloud</title>
+</head>
+<body style="margin:0;padding:0;background:#050507;font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#050507;padding:24px 12px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#111116;border-radius:20px;padding:28px;">
+                    <tr>
+                        <td>
+                            <div style="font-size:28px;font-weight:900;color:#ffffff;margin-bottom:18px;">
+                                VeiCloud
+                            </div>
+
+                            <div style="font-size:20px;font-weight:900;color:#ffffff;margin-bottom:12px;">
+                                Bienvenido a VeiCloud
+                            </div>
+
+                            <div style="font-size:15px;line-height:23px;color:#c8c8d2;margin-bottom:20px;">
+                                Tu cuenta fue creada correctamente. Ya puedes elegir tu perfil y comenzar a disfrutar VeiCloud.
+                            </div>
+
+                            <div style="background:#18181f;border-radius:16px;padding:16px;margin-bottom:20px;">
+                                <div style="font-size:13px;color:#8f8f99;margin-bottom:6px;">
+                                    Correo registrado
+                                </div>
+
+                                <div style="font-size:16px;font-weight:800;color:#ffffff;">
+                                    ${safeEmail}
+                                </div>
+                            </div>
+
+                            <div style="font-size:14px;line-height:22px;color:#b8b8c2;">
+                                Gracias por formar parte de VeiCloud.
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <div style="max-width:520px;margin:14px auto 0;font-size:12px;line-height:18px;color:#777783;text-align:center;">
+                    Mensaje automático de VeiCloud.
+                </div>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    `.trim();
+}
+
+async function sendWelcomeEmail(
+    email
+) {
+    console.log(
+        "Intentando enviar correo de bienvenida por Brevo API a:",
+        email
+    );
+
+    return sendCustomEmail(
+        {
+            to: email,
+            subject: "Bienvenido a VeiCloud",
+            text: createWelcomeEmailText(
+                email
+            ),
+            html: createWelcomeEmailHtml(
+                email
+            )
         }
     );
 }
@@ -1216,7 +1349,10 @@ async function getAuthenticatedFirebaseSession(
     }
 
     if (!currentRefreshToken) {
-        clearSessionCookies(response);
+        clearSessionCookies(
+            response
+        );
+
         return null;
     }
 
@@ -1226,7 +1362,10 @@ async function getAuthenticatedFirebaseSession(
         );
 
     if (!renewedSession) {
-        clearSessionCookies(response);
+        clearSessionCookies(
+            response
+        );
+
         return null;
     }
 
@@ -1344,7 +1483,9 @@ app.post(
                 {
                     ok: true,
                     message: "Código enviado correctamente.",
-                    email: maskEmail(account.email)
+                    email: maskEmail(
+                        account.email
+                    )
                 }
             );
         } catch (
@@ -1574,7 +1715,9 @@ app.post(
             }
 
             const activeResetData =
-                passwordResetLinksByEmail.get(email);
+                passwordResetLinksByEmail.get(
+                    email
+                );
 
             if (
                 activeResetData &&
@@ -1636,7 +1779,9 @@ app.post(
             }
 
             const oldResetData =
-                passwordResetLinksByEmail.get(email);
+                passwordResetLinksByEmail.get(
+                    email
+                );
 
             if (oldResetData?.token) {
                 passwordResetLinksByToken.delete(
@@ -1670,7 +1815,9 @@ app.post(
             );
 
             const resetUrl =
-                createPasswordResetUrl(token);
+                createPasswordResetUrl(
+                    token
+                );
 
             await sendPasswordResetLinkEmail(
                 email,
@@ -1752,7 +1899,9 @@ app.post(
             }
 
             const resetData =
-                passwordResetLinksByToken.get(token);
+                passwordResetLinksByToken.get(
+                    token
+                );
 
             if (!resetData) {
                 response.status(404).json(
@@ -1786,7 +1935,9 @@ app.post(
                 );
 
                 const emailReset =
-                    passwordResetLinksByEmail.get(resetData.email);
+                    passwordResetLinksByEmail.get(
+                        resetData.email
+                    );
 
                 if (emailReset?.token === token) {
                     passwordResetLinksByEmail.delete(
@@ -1821,7 +1972,9 @@ app.post(
             );
 
             const emailReset =
-                passwordResetLinksByEmail.get(resetData.email);
+                passwordResetLinksByEmail.get(
+                    resetData.email
+                );
 
             if (emailReset?.token === token) {
                 passwordResetLinksByEmail.delete(
@@ -1858,6 +2011,92 @@ app.post(
                 {
                     ok: false,
                     message: `No se pudo actualizar la contraseña. ${error.message || ""}`.trim()
+                }
+            );
+        }
+    }
+);
+
+/*
+ * =========================================================
+ * CORREO DE BIENVENIDA PARA ANDROID
+ * =========================================================
+ */
+
+app.post(
+    "/api/send-welcome-email",
+    async (
+        request,
+        response
+    ) => {
+        try {
+            console.log(
+                "Solicitud recibida en /api/send-welcome-email"
+            );
+
+            const idToken =
+                String(
+                    request.body?.idToken || ""
+                ).trim();
+
+            if (!idToken) {
+                response.status(401).json(
+                    {
+                        ok: false,
+                        message: "Sesión no válida."
+                    }
+                );
+
+                return;
+            }
+
+            const account =
+                await lookupFirebaseAccount(
+                    idToken
+                );
+
+            if (!account || !account.uid || !account.email) {
+                response.status(401).json(
+                    {
+                        ok: false,
+                        message: "No se pudo verificar la cuenta."
+                    }
+                );
+
+                return;
+            }
+
+            await sendWelcomeEmail(
+                account.email
+            );
+
+            response.setHeader(
+                "Cache-Control",
+                "no-store"
+            );
+
+            response.json(
+                {
+                    ok: true,
+                    message: "Correo de bienvenida enviado."
+                }
+            );
+        } catch (
+            error
+        ) {
+            console.error(
+                "Error enviando correo de bienvenida:",
+                {
+                    name: error.name,
+                    code: error.code,
+                    message: error.message
+                }
+            );
+
+            response.status(500).json(
+                {
+                    ok: false,
+                    message: `No se pudo enviar el correo de bienvenida. ${error.message || ""}`.trim()
                 }
             );
         }
@@ -1954,7 +2193,9 @@ app.post(
                 response.status(statusCode).json(
                     {
                         ok: false,
-                        message: getReadableFirebaseAuthError(firebaseErrorCode)
+                        message: getReadableFirebaseAuthError(
+                            firebaseErrorCode
+                        )
                     }
                 );
 
@@ -2363,7 +2604,9 @@ async function loadTrendingBackdrops() {
                         return false;
                     }
 
-                    usedImages.add(item.backdropUrl);
+                    usedImages.add(
+                        item.backdropUrl
+                    );
 
                     return true;
                 }
@@ -2517,6 +2760,10 @@ app.listen(
             EMAIL_FROM
                 ? `Remitente configurado: ${EMAIL_FROM}`
                 : "Aviso: falta configurar EMAIL_FROM."
+        );
+
+        console.log(
+            "Endpoint de bienvenida activo en /api/send-welcome-email."
         );
 
         console.log(
