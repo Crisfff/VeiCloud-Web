@@ -1,7 +1,17 @@
 const express = require("express");
 const path = require("path");
 const crypto = require("crypto");
-const admin = require("firebase-admin");
+
+const {
+    initializeApp,
+    getApps,
+    getApp,
+    cert
+} = require("firebase-admin/app");
+
+const {
+    getAuth
+} = require("firebase-admin/auth");
 
 const registerCatalogRoutes = require("./catalog-routes");
 
@@ -103,13 +113,14 @@ app.use(
             "/.env"
         ];
 
-        const isBlocked = blockedPaths.some(
-            (
-                blockedPath
-            ) =>
-                request.path === blockedPath ||
-                request.path.startsWith(`${blockedPath}/`)
-        );
+        const isBlocked =
+            blockedPaths.some(
+                (
+                    blockedPath
+                ) =>
+                    request.path === blockedPath ||
+                    request.path.startsWith(`${blockedPath}/`)
+            );
 
         if (isBlocked) {
             response.status(404).end();
@@ -146,7 +157,8 @@ function parseCookies(
                 cookies,
                 part
             ) => {
-                const separatorIndex = part.indexOf("=");
+                const separatorIndex =
+                    part.indexOf("=");
 
                 if (separatorIndex === -1) {
                     return cookies;
@@ -241,7 +253,7 @@ function clearSessionCookies(
 
 /*
  * =========================================================
- * FIREBASE
+ * FIREBASE WEB API
  * =========================================================
  */
 
@@ -298,7 +310,7 @@ function parseBoolean(
 
 /*
  * =========================================================
- * FIREBASE ADMIN
+ * FIREBASE ADMIN MODERNO
  * =========================================================
  */
 
@@ -308,27 +320,36 @@ function requireFirebaseAdminConfiguration() {
     }
 }
 
-function getFirebaseAdminAuth() {
+function parseFirebaseServiceAccount() {
     requireFirebaseAdminConfiguration();
 
-    try {
-        const existingApp =
-            admin.app();
+    let rawJson =
+        String(FIREBASE_SERVICE_ACCOUNT_JSON || "").trim();
 
-        if (existingApp) {
-            return admin.auth(existingApp);
-        }
-    } catch {
-        // Firebase Admin todavía no está inicializado.
+    if (!rawJson) {
+        throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON está vacío.");
     }
 
     let serviceAccount;
 
     try {
         serviceAccount =
-            JSON.parse(FIREBASE_SERVICE_ACCOUNT_JSON);
+            JSON.parse(rawJson);
     } catch {
-        throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON no tiene formato JSON válido.");
+        try {
+            const decoded =
+                Buffer
+                    .from(
+                        rawJson,
+                        "base64"
+                    )
+                    .toString("utf8");
+
+            serviceAccount =
+                JSON.parse(decoded);
+        } catch {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON no tiene formato JSON válido.");
+        }
     }
 
     if (!serviceAccount.project_id) {
@@ -343,40 +364,43 @@ function getFirebaseAdminAuth() {
         throw new Error("El JSON de Firebase Admin no tiene private_key.");
     }
 
-    const privateKey =
+    serviceAccount.private_key =
         String(serviceAccount.private_key)
             .replace(/\\n/g, "\n")
             .trim();
 
-    try {
-        const firebaseApp =
-            admin.initializeApp(
-                {
-                    credential:
-                        admin.credential.cert(
-                            {
-                                projectId: serviceAccount.project_id,
-                                clientEmail: serviceAccount.client_email,
-                                privateKey
-                            }
-                        )
-                }
-            );
+    return serviceAccount;
+}
 
-        return admin.auth(firebaseApp);
-    } catch (error) {
-        if (
-            error &&
-            (
-                error.code === "app/duplicate-app" ||
-                String(error.message || "").includes("already exists")
-            )
-        ) {
-            return admin.auth(admin.app());
-        }
+function getFirebaseAdminAuth() {
+    requireFirebaseAdminConfiguration();
 
-        throw error;
+    if (getApps().length > 0) {
+        return getAuth(
+            getApp()
+        );
     }
+
+    const serviceAccount =
+        parseFirebaseServiceAccount();
+
+    const firebaseApp =
+        initializeApp(
+            {
+                credential:
+                    cert(
+                        {
+                            projectId: serviceAccount.project_id,
+                            clientEmail: serviceAccount.client_email,
+                            privateKey: serviceAccount.private_key
+                        }
+                    )
+            }
+        );
+
+    return getAuth(
+        firebaseApp
+    );
 }
 
 function normalizeEmailAddress(
@@ -490,9 +514,11 @@ async function sendCustomEmail(
         );
 
     const brevoData =
-        await brevoResponse.json().catch(
-            () => ({})
-        );
+        await brevoResponse
+            .json()
+            .catch(
+                () => ({})
+            );
 
     if (!brevoResponse.ok) {
         throw new Error(
