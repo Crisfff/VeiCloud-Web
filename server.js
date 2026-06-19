@@ -311,8 +311,15 @@ function requireFirebaseAdminConfiguration() {
 function getFirebaseAdminAuth() {
     requireFirebaseAdminConfiguration();
 
-    if (admin.apps.length > 0) {
-        return admin.auth();
+    try {
+        const existingApp =
+            admin.app();
+
+        if (existingApp) {
+            return admin.auth(existingApp);
+        }
+    } catch {
+        // Firebase Admin todavía no está inicializado.
     }
 
     let serviceAccount;
@@ -338,22 +345,38 @@ function getFirebaseAdminAuth() {
 
     const privateKey =
         String(serviceAccount.private_key)
-            .replace(/\\n/g, "\n");
+            .replace(/\\n/g, "\n")
+            .trim();
 
-    admin.initializeApp(
-        {
-            credential:
-                admin.credential.cert(
-                    {
-                        projectId: serviceAccount.project_id,
-                        clientEmail: serviceAccount.client_email,
-                        privateKey
-                    }
-                )
+    try {
+        const firebaseApp =
+            admin.initializeApp(
+                {
+                    credential:
+                        admin.credential.cert(
+                            {
+                                projectId: serviceAccount.project_id,
+                                clientEmail: serviceAccount.client_email,
+                                privateKey
+                            }
+                        )
+                }
+            );
+
+        return admin.auth(firebaseApp);
+    } catch (error) {
+        if (
+            error &&
+            (
+                error.code === "app/duplicate-app" ||
+                String(error.message || "").includes("already exists")
+            )
+        ) {
+            return admin.auth(admin.app());
         }
-    );
 
-    return admin.auth();
+        throw error;
+    }
 }
 
 function normalizeEmailAddress(
@@ -1358,7 +1381,9 @@ app.post(
                 passwordResetLinksByEmail.get(email);
 
             if (oldResetData?.token) {
-                passwordResetLinksByToken.delete(oldResetData.token);
+                passwordResetLinksByToken.delete(
+                    oldResetData.token
+                );
             }
 
             const token =
@@ -1483,7 +1508,9 @@ app.post(
             }
 
             if (resetData.used === true) {
-                passwordResetLinksByToken.delete(token);
+                passwordResetLinksByToken.delete(
+                    token
+                );
 
                 response.status(410).json(
                     {
@@ -1496,13 +1523,17 @@ app.post(
             }
 
             if (resetData.expiresAt < Date.now()) {
-                passwordResetLinksByToken.delete(token);
+                passwordResetLinksByToken.delete(
+                    token
+                );
 
                 const emailReset =
                     passwordResetLinksByEmail.get(resetData.email);
 
                 if (emailReset?.token === token) {
-                    passwordResetLinksByEmail.delete(resetData.email);
+                    passwordResetLinksByEmail.delete(
+                        resetData.email
+                    );
                 }
 
                 response.status(410).json(
@@ -1527,13 +1558,17 @@ app.post(
 
             resetData.used = true;
 
-            passwordResetLinksByToken.delete(token);
+            passwordResetLinksByToken.delete(
+                token
+            );
 
             const emailReset =
                 passwordResetLinksByEmail.get(resetData.email);
 
             if (emailReset?.token === token) {
-                passwordResetLinksByEmail.delete(resetData.email);
+                passwordResetLinksByEmail.delete(
+                    resetData.email
+                );
             }
 
             response.setHeader(
