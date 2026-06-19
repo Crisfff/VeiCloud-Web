@@ -2690,6 +2690,173 @@ app.get(
 
 /*
  * =========================================================
+ * PUENTE DE ENLACES COMPARTIDOS
+ * =========================================================
+ */
+
+app.get(
+    "/watch",
+    (
+        request,
+        response
+    ) => {
+        const type =
+            String(request.query.type || "")
+                .trim()
+                .toLowerCase();
+
+        const id =
+            String(request.query.id || "")
+                .trim();
+
+        const safeType =
+            type === "tv" ? "tv" : "movie";
+
+        const safeId =
+            id.replace(/[^0-9]/g, "");
+
+        if (!safeId) {
+            response
+                .status(400)
+                .send("Enlace de VeiCloud no válido.");
+
+            return;
+        }
+
+        const appUrl =
+            `veicloud://watch?type=${encodeURIComponent(safeType)}&id=${encodeURIComponent(safeId)}`;
+
+        const webUrl =
+            `${getPublicBaseUrl()}/watch?type=${encodeURIComponent(safeType)}&id=${encodeURIComponent(safeId)}`;
+
+        response.setHeader(
+            "Content-Type",
+            "text/html; charset=utf-8"
+        );
+
+        response.setHeader(
+            "Cache-Control",
+            "no-store"
+        );
+
+        response.send(
+            `
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Abrir en VeiCloud</title>
+
+    <meta property="og:title" content="Ver en VeiCloud" />
+    <meta property="og:description" content="Abre este contenido directamente en la app VeiCloud." />
+    <meta property="og:image" content="https://veicloud.online/veicloud-logo.png" />
+    <meta property="og:url" content="${escapeHtml(webUrl)}" />
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(229, 9, 20, 0.28), transparent 38%),
+                linear-gradient(180deg, #111116 0%, #050507 100%);
+            color: white;
+            font-family: Arial, Helvetica, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(18, 18, 24, 0.92);
+            border-radius: 28px;
+            padding: 30px 24px;
+            text-align: center;
+            box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+        }
+
+        .logo {
+            width: 74px;
+            height: 74px;
+            border-radius: 22px;
+            object-fit: contain;
+            margin-bottom: 18px;
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: 30px;
+            font-weight: 900;
+        }
+
+        p {
+            margin: 0 0 24px;
+            color: #b8b8c2;
+            font-size: 16px;
+            line-height: 24px;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 17px 18px;
+            border-radius: 20px;
+            background: linear-gradient(90deg, #8b000b, #e50914, #ff2634);
+            color: white;
+            text-decoration: none;
+            font-size: 17px;
+            font-weight: 900;
+        }
+
+        .hint {
+            margin-top: 16px;
+            font-size: 12px;
+            line-height: 18px;
+            color: #777783;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <img class="logo" src="/veicloud-logo.png" alt="VeiCloud" />
+
+        <h1>Abrir en VeiCloud</h1>
+
+        <p>
+            Toca el botón para abrir este contenido directamente en la app.
+        </p>
+
+        <a class="btn" href="${escapeHtml(appUrl)}">
+            Abrir en la app
+        </a>
+
+        <div class="hint">
+            Si no se abre, asegúrate de tener VeiCloud instalada.
+        </div>
+    </div>
+
+    <script>
+        setTimeout(function () {
+            window.location.href = "${escapeHtml(appUrl)}";
+        }, 450);
+    </script>
+</body>
+</html>
+            `.trim()
+        );
+    }
+);
+
+/*
+ * =========================================================
  * ARCHIVOS PÚBLICOS
  * =========================================================
  */
@@ -2764,6 +2931,10 @@ app.listen(
 
         console.log(
             "Endpoint de bienvenida activo en /api/send-welcome-email."
+        );
+
+        console.log(
+            "Puente de enlaces compartidos activo en /watch."
         );
 
         console.log(
