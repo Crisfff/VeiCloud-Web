@@ -35,6 +35,8 @@ const FIREBASE_SERVICE_ACCOUNT_JSON = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
+const GOOGLE_WEB_CLIENT_ID = process.env.GOOGLE_WEB_CLIENT_ID;
+
 const EMAIL_FROM =
     process.env.EMAIL_FROM ||
     "VeiCloud <no-reply@veicloud.online>";
@@ -416,6 +418,236 @@ function isValidEmailAddress(
 ) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
+
+/*
+ * =========================================================
+ * GOOGLE LOGIN PROTEGIDO
+ * =========================================================
+ */
+
+function requireGoogleConfiguration() {
+    if (!GOOGLE_WEB_CLIENT_ID) {
+        throw new Error("Falta configurar GOOGLE_WEB_CLIENT_ID en Render.");
+    }
+}
+
+function parseGoogleEmailVerified(
+    value
+) {
+    return (
+        value === true ||
+        value === "true" ||
+        value === "1" ||
+        value === 1
+    );
+}
+
+async function verifyGoogleIdToken(
+    googleIdToken
+) {
+    requireGoogleConfiguration();
+
+    const cleanToken =
+        String(googleIdToken || "").trim();
+
+    if (!cleanToken) {
+        throw new Error("Token de Google vacío.");
+    }
+
+    const tokenInfoUrl =
+        "https://oauth2.googleapis.com/tokeninfo" +
+        `?id_token=${encodeURIComponent(cleanToken)}`;
+
+    const googleResponse =
+        await fetch(
+            tokenInfoUrl,
+            {
+                method: "GET",
+                headers: {
+                    Accept: "application/json"
+                }
+            }
+        );
+
+    const googleData =
+        await googleResponse
+            .json()
+            .catch(
+                () => ({})
+            );
+
+    if (!googleResponse.ok) {
+        throw new Error(
+            googleData?.error_description ||
+            googleData?.error ||
+            "Google no pudo verificar este inicio de sesión."
+        );
+    }
+
+    if (googleData.aud !== GOOGLE_WEB_CLIENT_ID) {
+        throw new Error("El token de Google no pertenece a VeiCloud.");
+    }
+
+    const email =
+        normalizeEmailAddress(
+            googleData.email
+        );
+
+    if (!email || !isValidEmailAddress(email)) {
+        throw new Error("Google no devolvió un correo válido.");
+    }
+
+    if (!parseGoogleEmailVerified(googleData.email_verified)) {
+        throw new Error("El correo de Google no está verificado.");
+    }
+
+    return {
+        email,
+        name:
+            String(
+                googleData.name || ""
+            ).trim(),
+        picture:
+            String(
+                googleData.picture || ""
+            ).trim(),
+        googleUserId:
+            String(
+                googleData.sub || ""
+            ).trim()
+    };
+}
+
+app.post(
+    "/api/google-login",
+    async (
+        request,
+        response
+    ) => {
+        try {
+            console.log(
+                "Solicitud recibida en /api/google-login"
+            );
+
+            const googleIdToken =
+                String(
+                    request.body?.googleIdToken ||
+                    request.body?.idToken ||
+                    ""
+                ).trim();
+
+            if (!googleIdToken) {
+                response.status(400).json(
+                    {
+                        ok: false,
+                        message: "No se recibió el token de Google."
+                    }
+                );
+
+                return;
+            }
+
+            const googleAccount =
+                await verifyGoogleIdToken(
+                    googleIdToken
+                );
+
+            const firebaseAdminAuth =
+                getFirebaseAdminAuth();
+
+            let firebaseUser =
+                null;
+
+            try {
+                firebaseUser =
+                    await firebaseAdminAuth.getUserByEmail(
+                        googleAccount.email
+                    );
+            } catch (
+                error
+            ) {
+                if (error.code === "auth/user-not-found") {
+                    response.status(404).json(
+                        {
+                            ok: false,
+                            message: "Este correo no existe en VeiCloud."
+                        }
+                    );
+
+                    return;
+                }
+
+                throw error;
+            }
+
+            if (!firebaseUser || !firebaseUser.uid) {
+                response.status(404).json(
+                    {
+                        ok: false,
+                        message: "Este correo no existe en VeiCloud."
+                    }
+                );
+
+                return;
+            }
+
+            if (firebaseUser.disabled === true) {
+                response.status(403).json(
+                    {
+                        ok: false,
+                        message: "Esta cuenta se encuentra desactivada."
+                    }
+                );
+
+                return;
+            }
+
+            const customToken =
+                await firebaseAdminAuth.createCustomToken(
+                    firebaseUser.uid,
+                    {
+                        provider: "google",
+                        email: googleAccount.email
+                    }
+                );
+
+            response.setHeader(
+                "Cache-Control",
+                "no-store"
+            );
+
+            response.json(
+                {
+                    ok: true,
+                    message: "Inicio con Google autorizado.",
+                    customToken,
+                    uid: firebaseUser.uid,
+                    email: googleAccount.email,
+                    name: googleAccount.name,
+                    picture: googleAccount.picture
+                }
+            );
+        } catch (
+            error
+        ) {
+            console.error(
+                "Error en inicio con Google:",
+                {
+                    name: error.name,
+                    code: error.code,
+                    message: error.message
+                }
+            );
+
+            response.status(500).json(
+                {
+                    ok: false,
+                    message: error.message || "No se pudo iniciar sesión con Google."
+                }
+            );
+        }
+    }
+);
 
 /*
  * =========================================================
@@ -2267,6 +2499,12 @@ app.listen(
             FIREBASE_SERVICE_ACCOUNT_JSON
                 ? "Firebase Admin configurado."
                 : "Aviso: falta configurar FIREBASE_SERVICE_ACCOUNT_JSON."
+        );
+
+        console.log(
+            GOOGLE_WEB_CLIENT_ID
+                ? "Google Web Client ID configurado."
+                : "Aviso: falta configurar GOOGLE_WEB_CLIENT_ID."
         );
 
         console.log(
