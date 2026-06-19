@@ -2709,11 +2709,18 @@ app.get(
             String(request.query.id || "")
                 .trim();
 
+        const cid =
+            String(request.query.cid || "")
+                .trim();
+
         const safeType =
             type === "tv" ? "tv" : "movie";
 
         const safeId =
             id.replace(/[^0-9]/g, "");
+
+        const safeCid =
+            cid.replace(/[^a-zA-Z0-9_-]/g, "");
 
         if (!safeId) {
             response
@@ -2723,11 +2730,16 @@ app.get(
             return;
         }
 
+        const cidQuery =
+            safeCid
+                ? `&cid=${encodeURIComponent(safeCid)}`
+                : "";
+
         const appUrl =
-            `veicloud://watch?type=${encodeURIComponent(safeType)}&id=${encodeURIComponent(safeId)}`;
+            `veicloud://watch?type=${encodeURIComponent(safeType)}&id=${encodeURIComponent(safeId)}${cidQuery}`;
 
         const webUrl =
-            `${getPublicBaseUrl()}/watch?type=${encodeURIComponent(safeType)}&id=${encodeURIComponent(safeId)}`;
+            `${getPublicBaseUrl()}/watch?type=${encodeURIComponent(safeType)}&id=${encodeURIComponent(safeId)}${cidQuery}`;
 
         response.setHeader(
             "Content-Type",
@@ -2845,7 +2857,7 @@ app.get(
 
     <script>
         setTimeout(function () {
-            window.location.href = "${escapeHtml(appUrl)}";
+            window.location.href = ${JSON.stringify(appUrl)};
         }, 450);
     </script>
 </body>
