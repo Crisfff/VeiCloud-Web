@@ -2,14 +2,8 @@
  * =========================================================
  * VEICLOUD MUSIC ROUTES
  * =========================================================
- * Rutas de prueba para VeiCloud Music.
- *
  * Endpoint principal:
  * GET /api/music/search?q=shakira
- *
- * Por ahora:
- * - Si RAPIDAPI_KEY no está configurada en Render, devuelve demo.
- * - Si RAPIDAPI_KEY está configurada, intenta consultar RapidAPI.
  */
 
 function registerMusicRoutes(
@@ -58,13 +52,52 @@ function registerMusicRoutes(
             },
             {
                 id: "demo_3",
-                title: `${query} - Playlist`,
+                title: `${query} - Playlist",
                 artist: "Playlist sugerida",
                 thumbnail: "",
                 duration: "15 canciones",
                 type: "playlist"
             }
         ];
+    }
+
+    function safeStringify(
+        value
+    ) {
+        if (typeof value === "string") {
+            return value;
+        }
+
+        if (value === null || value === undefined) {
+            return "";
+        }
+
+        try {
+            return JSON.stringify(
+                value,
+                null,
+                2
+            );
+        } catch {
+            return String(value);
+        }
+    }
+
+    function getRapidErrorMessage(
+        rapidData,
+        status
+    ) {
+        if (!rapidData || typeof rapidData !== "object") {
+            return `RapidAPI respondió con código ${status}.`;
+        }
+
+        return (
+            safeStringify(rapidData.message) ||
+            safeStringify(rapidData.error) ||
+            safeStringify(rapidData.errors) ||
+            safeStringify(rapidData) ||
+            `RapidAPI respondió con código ${status}.`
+        );
     }
 
     function pickFirstString(
@@ -272,6 +305,10 @@ function registerMusicRoutes(
             return rapidData.response;
         }
 
+        if (Array.isArray(rapidData?.result)) {
+            return rapidData.result;
+        }
+
         return [];
     }
 
@@ -288,6 +325,15 @@ function registerMusicRoutes(
             query
         );
 
+        console.log(
+            "Buscando música en RapidAPI:",
+            {
+                url: url.toString(),
+                host: RAPIDAPI_MUSIC_HOST,
+                queryParam: RAPIDAPI_MUSIC_QUERY_PARAM
+            }
+        );
+
         const rapidResponse =
             await fetch(
                 url.toString(),
@@ -301,18 +347,28 @@ function registerMusicRoutes(
                 }
             );
 
-        const rapidData =
-            await rapidResponse
-                .json()
-                .catch(
-                    () => ({})
-                );
+        const responseText =
+            await rapidResponse.text();
+
+        let rapidData = {};
+
+        try {
+            rapidData =
+                responseText
+                    ? JSON.parse(responseText)
+                    : {};
+        } catch {
+            rapidData = {
+                raw: responseText
+            };
+        }
 
         if (!rapidResponse.ok) {
             throw new Error(
-                rapidData?.message ||
-                rapidData?.error ||
-                `RapidAPI respondió con código ${rapidResponse.status}.`
+                getRapidErrorMessage(
+                    rapidData,
+                    rapidResponse.status
+                )
             );
         }
 
@@ -353,6 +409,7 @@ function registerMusicRoutes(
                     message: "VeiCloud Music conectado al servidor principal.",
                     rapidConfigured: Boolean(RAPIDAPI_KEY),
                     host: RAPIDAPI_MUSIC_HOST,
+                    baseUrl: RAPIDAPI_MUSIC_BASE_URL,
                     searchPath: RAPIDAPI_MUSIC_SEARCH_PATH,
                     queryParam: RAPIDAPI_MUSIC_QUERY_PARAM
                 }
@@ -366,15 +423,15 @@ function registerMusicRoutes(
             request,
             response
         ) => {
-            try {
-                const query =
-                    String(
-                        request.query.q ||
-                        request.query.query ||
-                        ""
-                    )
-                        .trim();
+            const query =
+                String(
+                    request.query.q ||
+                    request.query.query ||
+                    ""
+                )
+                    .trim();
 
+            try {
                 if (!query) {
                     response.status(400).json(
                         {
@@ -441,13 +498,7 @@ function registerMusicRoutes(
                 response.status(500).json(
                     {
                         success: false,
-                        query:
-                            String(
-                                request.query.q ||
-                                request.query.query ||
-                                ""
-                            )
-                                .trim(),
+                        query,
                         results: [],
                         message:
                             error.message ||
