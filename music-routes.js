@@ -6,6 +6,7 @@
  * Endpoints:
  * GET /api/music/ping
  * GET /api/music/search?q=shakira
+ * GET /api/music/info?id=IFQdcPTTzSg
  *
  * Variables en Render:
  * RAPIDAPI_KEY
@@ -13,6 +14,8 @@
  * RAPIDAPI_MUSIC_BASE_URL
  * RAPIDAPI_MUSIC_SEARCH_PATH
  * RAPIDAPI_MUSIC_QUERY_PARAM
+ * RAPIDAPI_MUSIC_INFO_PATH
+ * RAPIDAPI_MUSIC_INFO_ID_PARAM
  */
 
 function registerMusicRoutes(
@@ -25,19 +28,27 @@ function registerMusicRoutes(
 
     const RAPIDAPI_MUSIC_HOST =
         process.env.RAPIDAPI_MUSIC_HOST ||
-        "youtube-music-api-yt.p.rapidapi.com";
+        "youtube-music-api3.p.rapidapi.com";
 
     const RAPIDAPI_MUSIC_BASE_URL =
         process.env.RAPIDAPI_MUSIC_BASE_URL ||
-        "https://youtube-music-api-yt.p.rapidapi.com";
+        "https://youtube-music-api3.p.rapidapi.com";
 
     const RAPIDAPI_MUSIC_SEARCH_PATH =
         process.env.RAPIDAPI_MUSIC_SEARCH_PATH ||
-        "/search";
+        "/search?type=song";
 
     const RAPIDAPI_MUSIC_QUERY_PARAM =
         process.env.RAPIDAPI_MUSIC_QUERY_PARAM ||
-        "query";
+        "q";
+
+    const RAPIDAPI_MUSIC_INFO_PATH =
+        process.env.RAPIDAPI_MUSIC_INFO_PATH ||
+        "/info";
+
+    const RAPIDAPI_MUSIC_INFO_ID_PARAM =
+        process.env.RAPIDAPI_MUSIC_INFO_ID_PARAM ||
+        "id";
 
     function createDemoMusicResults(
         query
@@ -49,7 +60,9 @@ function registerMusicRoutes(
                 artist: "VeiCloud Music Demo",
                 thumbnail: "",
                 duration: "3:21",
-                type: "song"
+                type: "song",
+                watchUrl: "",
+                audioUrl: ""
             },
             {
                 id: "demo_2",
@@ -57,7 +70,9 @@ function registerMusicRoutes(
                 artist: "Sistema de prueba",
                 thumbnail: "",
                 duration: "2:58",
-                type: "song"
+                type: "song",
+                watchUrl: "",
+                audioUrl: ""
             },
             {
                 id: "demo_3",
@@ -65,7 +80,9 @@ function registerMusicRoutes(
                 artist: "Playlist sugerida",
                 thumbnail: "",
                 duration: "15 canciones",
-                type: "playlist"
+                type: "playlist",
+                watchUrl: "",
+                audioUrl: ""
             }
         ];
     }
@@ -110,26 +127,28 @@ function registerMusicRoutes(
     }
 
     function buildRapidUrl(
-        query
+        path,
+        paramName,
+        paramValue
     ) {
         const cleanBaseUrl =
             String(RAPIDAPI_MUSIC_BASE_URL || "")
                 .trim()
                 .replace(/\/+$/, "");
 
-        const cleanSearchPath =
-            String(RAPIDAPI_MUSIC_SEARCH_PATH || "/search")
+        const cleanPath =
+            String(path || "")
                 .trim()
                 .replace(/^\/?/, "/");
 
         const url =
             new URL(
-                `${cleanBaseUrl}${cleanSearchPath}`
+                `${cleanBaseUrl}${cleanPath}`
             );
 
         url.searchParams.set(
-            RAPIDAPI_MUSIC_QUERY_PARAM,
-            query
+            paramName,
+            paramValue
         );
 
         return url;
@@ -280,6 +299,39 @@ function registerMusicRoutes(
         return "";
     }
 
+    function normalizeAudioUrl(
+        item
+    ) {
+        if (!item || typeof item !== "object") {
+            return "";
+        }
+
+        return pickFirstString(
+            [
+                item.audioUrl,
+                item.audio,
+                item.streamUrl,
+                item.streamingUrl,
+                item.playUrl,
+                item.playbackUrl,
+                item.musicUrl,
+                item.mediaUrl,
+                item.url,
+                item.downloadUrl
+            ]
+        );
+    }
+
+    function createWatchUrl(
+        id
+    ) {
+        if (!id) {
+            return "";
+        }
+
+        return `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
+    }
+
     function normalizeMusicItem(
         item,
         index
@@ -341,13 +393,32 @@ function registerMusicRoutes(
             ) ||
             "song";
 
+        const audioUrl =
+            normalizeAudioUrl(
+                item
+            );
+
+        const watchUrl =
+            pickFirstString(
+                [
+                    item?.watchUrl,
+                    item?.videoUrl,
+                    item?.youtubeUrl
+                ]
+            ) ||
+            createWatchUrl(
+                id
+            );
+
         return {
             id,
             title,
             artist,
             thumbnail,
             duration,
-            type
+            type,
+            watchUrl,
+            audioUrl
         };
     }
 
@@ -413,23 +484,39 @@ function registerMusicRoutes(
         return [];
     }
 
-    async function searchMusicWithRapidAPI(
-        query
+    function extractRapidInfo(
+        rapidData
     ) {
-        const url =
-            buildRapidUrl(
-                query
-            );
+        if (!rapidData || typeof rapidData !== "object") {
+            return {};
+        }
 
-        console.log(
-            "Buscando música en RapidAPI:",
-            {
-                url: url.toString(),
-                host: RAPIDAPI_MUSIC_HOST,
-                queryParam: RAPIDAPI_MUSIC_QUERY_PARAM
-            }
-        );
+        if (rapidData.data && typeof rapidData.data === "object") {
+            return rapidData.data;
+        }
 
+        if (rapidData.result && typeof rapidData.result === "object") {
+            return rapidData.result;
+        }
+
+        if (rapidData.info && typeof rapidData.info === "object") {
+            return rapidData.info;
+        }
+
+        if (rapidData.music && typeof rapidData.music === "object") {
+            return rapidData.music;
+        }
+
+        if (rapidData.video && typeof rapidData.video === "object") {
+            return rapidData.video;
+        }
+
+        return rapidData;
+    }
+
+    async function callRapidAPI(
+        url
+    ) {
         const rapidResponse =
             await fetch(
                 url.toString(),
@@ -468,6 +555,33 @@ function registerMusicRoutes(
             );
         }
 
+        return rapidData;
+    }
+
+    async function searchMusicWithRapidAPI(
+        query
+    ) {
+        const url =
+            buildRapidUrl(
+                RAPIDAPI_MUSIC_SEARCH_PATH,
+                RAPIDAPI_MUSIC_QUERY_PARAM,
+                query
+            );
+
+        console.log(
+            "Buscando música en RapidAPI:",
+            {
+                url: url.toString(),
+                host: RAPIDAPI_MUSIC_HOST,
+                queryParam: RAPIDAPI_MUSIC_QUERY_PARAM
+            }
+        );
+
+        const rapidData =
+            await callRapidAPI(
+                url
+            );
+
         const rawResults =
             extractRapidResults(
                 rapidData
@@ -499,6 +613,51 @@ function registerMusicRoutes(
         };
     }
 
+    async function getMusicInfoWithRapidAPI(
+        id
+    ) {
+        const url =
+            buildRapidUrl(
+                RAPIDAPI_MUSIC_INFO_PATH,
+                RAPIDAPI_MUSIC_INFO_ID_PARAM,
+                id
+            );
+
+        console.log(
+            "Cargando info de música en RapidAPI:",
+            {
+                url: url.toString(),
+                host: RAPIDAPI_MUSIC_HOST,
+                idParam: RAPIDAPI_MUSIC_INFO_ID_PARAM
+            }
+        );
+
+        const rapidData =
+            await callRapidAPI(
+                url
+            );
+
+        const rawInfo =
+            extractRapidInfo(
+                rapidData
+            );
+
+        const normalizedInfo =
+            normalizeMusicItem(
+                {
+                    id,
+                    ...rawInfo
+                },
+                0
+            );
+
+        return {
+            rapidData,
+            rawInfo,
+            normalizedInfo
+        };
+    }
+
     app.get(
         "/api/music/ping",
         (
@@ -513,7 +672,9 @@ function registerMusicRoutes(
                     host: RAPIDAPI_MUSIC_HOST,
                     baseUrl: RAPIDAPI_MUSIC_BASE_URL,
                     searchPath: RAPIDAPI_MUSIC_SEARCH_PATH,
-                    queryParam: RAPIDAPI_MUSIC_QUERY_PARAM
+                    queryParam: RAPIDAPI_MUSIC_QUERY_PARAM,
+                    infoPath: RAPIDAPI_MUSIC_INFO_PATH,
+                    infoIdParam: RAPIDAPI_MUSIC_INFO_ID_PARAM
                 }
             );
         }
@@ -613,8 +774,109 @@ function registerMusicRoutes(
         }
     );
 
+    app.get(
+        "/api/music/info",
+        async (
+            request,
+            response
+        ) => {
+            const id =
+                String(
+                    request.query.id ||
+                    request.query.videoId ||
+                    ""
+                )
+                    .trim();
+
+            try {
+                if (!id) {
+                    response.status(400).json(
+                        {
+                            success: false,
+                            id: "",
+                            source: "none",
+                            item: null,
+                            message: "Falta el parámetro id."
+                        }
+                    );
+
+                    return;
+                }
+
+                response.setHeader(
+                    "Cache-Control",
+                    "no-store"
+                );
+
+                if (!RAPIDAPI_KEY) {
+                    response.json(
+                        {
+                            success: true,
+                            id,
+                            source: "demo",
+                            item: {
+                                id,
+                                title: "Demo Music Info",
+                                artist: "VeiCloud Music Demo",
+                                thumbnail: "",
+                                duration: "",
+                                type: "song",
+                                watchUrl: createWatchUrl(id),
+                                audioUrl: ""
+                            },
+                            message: "Info demo. Falta configurar RAPIDAPI_KEY en Render."
+                        }
+                    );
+
+                    return;
+                }
+
+                const rapidInfo =
+                    await getMusicInfoWithRapidAPI(
+                        id
+                    );
+
+                response.json(
+                    {
+                        success: true,
+                        id,
+                        source: "rapidapi",
+                        item: rapidInfo.normalizedInfo,
+                        hasAudioUrl: Boolean(rapidInfo.normalizedInfo.audioUrl),
+                        message:
+                            rapidInfo.normalizedInfo.audioUrl
+                                ? "Info obtenida con enlace de audio."
+                                : "Info obtenida. No se detectó audioUrl directo."
+                    }
+                );
+            } catch (
+                error
+            ) {
+                console.error(
+                    "Error en /api/music/info:",
+                    {
+                        name: error.name,
+                        message: error.message
+                    }
+                );
+
+                response.status(500).json(
+                    {
+                        success: false,
+                        id,
+                        source: "rapidapi",
+                        item: null,
+                        message:
+                            error.message ||
+                            "No se pudo obtener la información de la canción."
+                    }
+                );
+            }
+        }
+    );
+
     console.log(
-        "VeiCloud Music activo en /api/music/search."
+        "VeiCloud Music activo en /api/music/search y /api/music/info."
     );
 }
 
