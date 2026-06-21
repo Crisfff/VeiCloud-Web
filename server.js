@@ -14,6 +14,7 @@ const {
 } = require("firebase-admin/auth");
 
 const registerCatalogRoutes = require("./catalog-routes");
+const registerMusicRoutes = require("./music-routes");
 
 const app = express();
 
@@ -2462,6 +2463,12 @@ registerCatalogRoutes(
         app,
         getAuthenticatedFirebaseSession,
         getFirebaseDatabaseBaseUrl
+    }
+);
+
+registerMusicRoutes(
+    {
+        app
     }
 );
 
