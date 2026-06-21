@@ -2,8 +2,17 @@
  * =========================================================
  * VEICLOUD MUSIC ROUTES
  * =========================================================
- * Endpoint principal:
+ *
+ * Endpoints:
+ * GET /api/music/ping
  * GET /api/music/search?q=shakira
+ *
+ * Variables en Render:
+ * RAPIDAPI_KEY
+ * RAPIDAPI_MUSIC_HOST
+ * RAPIDAPI_MUSIC_BASE_URL
+ * RAPIDAPI_MUSIC_SEARCH_PATH
+ * RAPIDAPI_MUSIC_QUERY_PARAM
  */
 
 function registerMusicRoutes(
@@ -52,7 +61,7 @@ function registerMusicRoutes(
             },
             {
                 id: "demo_3",
-                title: `${query} - Playlist",
+                title: `${query} - Playlist`,
                 artist: "Playlist sugerida",
                 thumbnail: "",
                 duration: "15 canciones",
@@ -100,6 +109,32 @@ function registerMusicRoutes(
         );
     }
 
+    function buildRapidUrl(
+        query
+    ) {
+        const cleanBaseUrl =
+            String(RAPIDAPI_MUSIC_BASE_URL || "")
+                .trim()
+                .replace(/\/+$/, "");
+
+        const cleanSearchPath =
+            String(RAPIDAPI_MUSIC_SEARCH_PATH || "/search")
+                .trim()
+                .replace(/^\/?/, "/");
+
+        const url =
+            new URL(
+                `${cleanBaseUrl}${cleanSearchPath}`
+            );
+
+        url.searchParams.set(
+            RAPIDAPI_MUSIC_QUERY_PARAM,
+            query
+        );
+
+        return url;
+    }
+
     function pickFirstString(
         values
     ) {
@@ -132,6 +167,14 @@ function registerMusicRoutes(
             return item.author;
         }
 
+        if (typeof item.subtitle === "string") {
+            return item.subtitle;
+        }
+
+        if (typeof item.description === "string") {
+            return item.description;
+        }
+
         if (typeof item.name === "string" && item.type === "artist") {
             return item.name;
         }
@@ -149,6 +192,27 @@ function registerMusicRoutes(
                         return (
                             artist?.name ||
                             artist?.title ||
+                            ""
+                        );
+                    }
+                )
+                .filter(Boolean)
+                .join(", ");
+        }
+
+        if (Array.isArray(item.authorInfo)) {
+            return item.authorInfo
+                .map(
+                    (
+                        author
+                    ) => {
+                        if (typeof author === "string") {
+                            return author;
+                        }
+
+                        return (
+                            author?.name ||
+                            author?.title ||
                             ""
                         );
                     }
@@ -179,6 +243,10 @@ function registerMusicRoutes(
             return item.cover;
         }
 
+        if (typeof item.thumbnailUrl === "string") {
+            return item.thumbnailUrl;
+        }
+
         if (Array.isArray(item.thumbnails) && item.thumbnails.length > 0) {
             const lastThumbnail =
                 item.thumbnails[item.thumbnails.length - 1];
@@ -190,6 +258,21 @@ function registerMusicRoutes(
             return (
                 lastThumbnail?.url ||
                 lastThumbnail?.src ||
+                ""
+            );
+        }
+
+        if (Array.isArray(item.images) && item.images.length > 0) {
+            const lastImage =
+                item.images[item.images.length - 1];
+
+            if (typeof lastImage === "string") {
+                return lastImage;
+            }
+
+            return (
+                lastImage?.url ||
+                lastImage?.src ||
                 ""
             );
         }
@@ -209,7 +292,8 @@ function registerMusicRoutes(
                     item?.playlistId,
                     item?.albumId,
                     item?.browseId,
-                    item?.youtubeId
+                    item?.youtubeId,
+                    item?.channelId
                 ]
             ) ||
             `item_${index}`;
@@ -251,7 +335,8 @@ function registerMusicRoutes(
                 [
                     item?.type,
                     item?.category,
-                    item?.resultType
+                    item?.resultType,
+                    item?.kind
                 ]
             ) ||
             "song";
@@ -301,12 +386,28 @@ function registerMusicRoutes(
             return rapidData.playlists;
         }
 
+        if (Array.isArray(rapidData?.albums)) {
+            return rapidData.albums;
+        }
+
+        if (Array.isArray(rapidData?.artists)) {
+            return rapidData.artists;
+        }
+
         if (Array.isArray(rapidData?.response)) {
             return rapidData.response;
         }
 
         if (Array.isArray(rapidData?.result)) {
             return rapidData.result;
+        }
+
+        if (Array.isArray(rapidData?.data?.results)) {
+            return rapidData.data.results;
+        }
+
+        if (Array.isArray(rapidData?.data?.items)) {
+            return rapidData.data.items;
         }
 
         return [];
@@ -316,14 +417,9 @@ function registerMusicRoutes(
         query
     ) {
         const url =
-            new URL(
-                `${RAPIDAPI_MUSIC_BASE_URL}${RAPIDAPI_MUSIC_SEARCH_PATH}`
+            buildRapidUrl(
+                query
             );
-
-        url.searchParams.set(
-            RAPIDAPI_MUSIC_QUERY_PARAM,
-            query
-        );
 
         console.log(
             "Buscando música en RapidAPI:",
@@ -342,7 +438,7 @@ function registerMusicRoutes(
                     headers: {
                         "x-rapidapi-key": RAPIDAPI_KEY,
                         "x-rapidapi-host": RAPIDAPI_MUSIC_HOST,
-                        "Accept": "application/json"
+                        Accept: "application/json"
                     }
                 }
             );
@@ -377,24 +473,30 @@ function registerMusicRoutes(
                 rapidData
             );
 
-        return rawResults
-            .map(
-                (
-                    item,
-                    index
-                ) =>
-                    normalizeMusicItem(
+        const normalizedResults =
+            rawResults
+                .map(
+                    (
                         item,
                         index
-                    )
-            )
-            .filter(
-                (
-                    item
-                ) =>
-                    item.title &&
-                    item.title !== "Sin título"
-            );
+                    ) =>
+                        normalizeMusicItem(
+                            item,
+                            index
+                        )
+                )
+                .filter(
+                    (
+                        item
+                    ) =>
+                        item.title &&
+                        item.title !== "Sin título"
+                );
+
+        return {
+            rapidData,
+            normalizedResults
+        };
     }
 
     app.get(
@@ -437,6 +539,7 @@ function registerMusicRoutes(
                         {
                             success: false,
                             query: "",
+                            source: "none",
                             results: [],
                             message: "Falta el parámetro q."
                         }
@@ -467,7 +570,7 @@ function registerMusicRoutes(
                     return;
                 }
 
-                const rapidResults =
+                const rapidSearch =
                     await searchMusicWithRapidAPI(
                         query
                     );
@@ -477,9 +580,9 @@ function registerMusicRoutes(
                         success: true,
                         query,
                         source: "rapidapi",
-                        results: rapidResults,
+                        results: rapidSearch.normalizedResults,
                         message:
-                            rapidResults.length > 0
+                            rapidSearch.normalizedResults.length > 0
                                 ? "Resultados obtenidos desde RapidAPI."
                                 : "RapidAPI respondió, pero no devolvió resultados normalizables."
                     }
@@ -499,6 +602,7 @@ function registerMusicRoutes(
                     {
                         success: false,
                         query,
+                        source: "rapidapi",
                         results: [],
                         message:
                             error.message ||
