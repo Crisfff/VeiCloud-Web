@@ -1,250 +1,101 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <meta
-        name="description"
-        content="VeiCloud: entretenimiento desde cualquier dispositivo."
-    >
-
-    <title>VeiCloud</title>
-
-    <link
-        rel="preconnect"
-        href="https://fonts.googleapis.com"
-    >
-
-    <link
-        rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossorigin
-    >
-
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
-        rel="stylesheet"
-    >
-
-    <link
-        rel="stylesheet"
-        href="styles.css"
-    >
-
-    <script
-        src="script.js"
-        defer
-    ></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080a0e">
+  <meta name="description" content="VeiCloud VPN: privacidad, velocidad y acceso global con una experiencia premium.">
+  <title>VeiCloud VPN | Internet sin fronteras</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
 </head>
-
 <body>
+  <div class="noise"></div>
+  <header class="nav shell">
+    <a class="logo" href="#inicio" aria-label="VeiCloud VPN">
+      <span class="logo-mark">V</span><span>VeiCloud <b>VPN</b></span>
+    </a>
+    <nav class="nav-links">
+      <a href="#ventajas">Ventajas</a><a href="#servidores">Servidores</a><a href="#planes">Planes</a><a href="#faq">FAQ</a>
+    </nav>
+    <a class="nav-cta" href="#descargar">Descargar</a>
+  </header>
 
-    <header class="topbar">
-        <a
-            class="brand"
-            href="#inicio"
-            aria-label="Inicio de VeiCloud"
-        >
-            <span class="brand-mark">
-                V
-            </span>
-
-            <span class="brand-name">
-                VeiCloud
-            </span>
-        </a>
-
-        <nav class="desktop-nav">
-            <a href="#inicio">
-                Inicio
-            </a>
-
-            <a href="#ventajas">
-                Descubre VeiCloud
-            </a>
-
-            <a href="#planes">
-                Planes
-            </a>
-        </nav>
-
-        <a
-            class="topbar-button"
-            href="#planes"
-        >
-            Obtener VeiCloud
-        </a>
-    </header>
-
-    <main>
-
-        <section
-            class="hero"
-            id="inicio"
-        >
-            <div class="hero-overlay"></div>
-
-            <div class="hero-content">
-                <p class="hero-label">
-                    TU ENTRETENIMIENTO, EN CUALQUIER PANTALLA
-                </p>
-
-                <h1>
-                    Una nube.<br>
-                    Miles de historias.
-                </h1>
-
-                <p class="hero-description">
-                    Disfruta VeiCloud desde tu móvil, televisor,
-                    computadora o navegador. Todo en una experiencia
-                    rápida, elegante y sencilla.
-                </p>
-
-                <div class="hero-actions">
-                    <a
-                        class="primary-button"
-                        href="#planes"
-                    >
-                        Ver planes
-                    </a>
-
-                    <a
-                        class="secondary-button login-button"
-                        href="login.html"
-                    >
-                        Iniciar sesión
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        <section
-            class="features"
-            id="ventajas"
-        >
-            <div class="section-heading">
-                <p class="section-label">
-                    VEICLOUD
-                </p>
-
-                <h2>
-                    Tu contenido viaja contigo
-                </h2>
-
-                <p>
-                    Una experiencia diseñada para entrar, elegir
-                    y disfrutar sin perder tiempo.
-                </p>
-            </div>
-
-            <div class="feature-grid">
-
-                <article class="feature-card">
-                    <span class="feature-icon">
-                        ▶
-                    </span>
-
-                    <h3>
-                        Reproduce desde el navegador
-                    </h3>
-
-                    <p>
-                        Abre tus enlaces compartidos desde iPhone,
-                        Android, tablet o computadora.
-                    </p>
-                </article>
-
-                <article class="feature-card">
-                    <span class="feature-icon">
-                        ↗
-                    </span>
-
-                    <h3>
-                        Comparte en segundos
-                    </h3>
-
-                    <p>
-                        Envía el enlace de una película o serie
-                        para abrirla directamente en VeiCloud Web.
-                    </p>
-                </article>
-
-                <article class="feature-card">
-                    <span class="feature-icon">
-                        ◉
-                    </span>
-
-                    <h3>
-                        Diseñado para cada pantalla
-                    </h3>
-
-                    <p>
-                        Una interfaz adaptable que se siente natural
-                        en móvil, TV y escritorio.
-                    </p>
-                </article>
-
-            </div>
-        </section>
-
-        <section
-            class="plans"
-            id="planes"
-        >
-            <div class="section-heading">
-                <p class="section-label">
-                    PLANES
-                </p>
-
-                <h2>
-                    Elige tu acceso
-                </h2>
-
-                <p>
-                    Próximamente podrás activar tu plan mediante
-                    un código de VeiCloud.
-                </p>
-            </div>
-
-            <div class="plans-placeholder">
-                <p>
-                    Los planes se mostrarán aquí.
-                </p>
-            </div>
-        </section>
-
-    </main>
-
-    <footer class="footer">
-        <div>
-            <a
-                class="brand footer-brand"
-                href="#inicio"
-            >
-                <span class="brand-mark">
-                    V
-                </span>
-
-                <span class="brand-name">
-                    VeiCloud
-                </span>
-            </a>
-
-            <p class="tmdb-attribution">
-                Este producto utiliza la API de TMDB,
-                pero no está respaldado ni certificado por TMDB.
-            </p>
+  <main>
+    <section class="hero shell" id="inicio">
+      <div class="hero-copy reveal">
+        <div class="eyebrow"><span></span> Seguridad de nueva generación</div>
+        <h1>Tu internet.<br><em>Sin fronteras.</em></h1>
+        <p>Privacidad real, conexión ultrarrápida y acceso global en una experiencia diseñada para sentirse invisible.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#descargar">Descargar VeiCloud VPN <span>↗</span></a>
+          <a class="button ghost" href="#ventajas">Descubrir cómo funciona</a>
         </div>
+        <div class="trust-row"><span>✓ Sin registros</span><span>✓ Cifrado avanzado</span><span>✓ Hasta 3 dispositivos</span></div>
+      </div>
 
-        <p>
-            © 2026 VeiCloud. Todos los derechos reservados.
-        </p>
-    </footer>
+      <div class="hero-visual reveal">
+        <div class="orb orb-one"></div><div class="orb orb-two"></div>
+        <div class="phone-card" data-tilt>
+          <div class="phone-top"><span>9:41</span><span>● ● ●</span></div>
+          <div class="app-brand"><span class="mini-logo">V</span><strong>VeiCloud VPN</strong><span class="scan">⌁</span></div>
+          <div class="status-pill"><i></i> Conexión protegida</div>
+          <button class="power" aria-label="Conectar"><span>⏻</span></button>
+          <div class="timer">00:42:18</div>
+          <div class="server-card"><span class="flag">🇫🇮</span><div><small>Ubicación</small><strong>Finlandia</strong></div><b>›</b></div>
+          <div class="speed-grid"><div><small>Descarga</small><strong>94.8 <span>Mbps</span></strong></div><div><small>Subida</small><strong>38.4 <span>Mbps</span></strong></div></div>
+          <div class="phone-nav"><span>⌂<small>Inicio</small></span><span>◎<small>Servidores</small></span><span>⚙<small>Ajustes</small></span></div>
+        </div>
+        <div class="floating-card fc-one"><span>⚡</span><div><small>Latencia</small><b>24 ms</b></div></div>
+        <div class="floating-card fc-two"><span>🛡</span><div><small>Estado</small><b>Protegido</b></div></div>
+      </div>
+    </section>
 
+    <section class="marquee"><div>PRIVACIDAD REAL · VELOCIDAD SIN LÍMITES · ACCESO GLOBAL · SEGURIDAD SIEMPRE ACTIVA · </div></section>
+
+    <section class="section shell" id="ventajas">
+      <div class="section-head reveal"><span>01 / VENTAJAS</span><h2>Protección silenciosa.<br>Potencia visible.</h2><p>Todo lo que necesitas para navegar libre, sin una interfaz que te estorbe.</p></div>
+      <div class="feature-grid">
+        <article class="feature large reveal"><div class="icon">⌁</div><h3>Conexión instantánea</h3><p>Un toque y estás protegido. VeiCloud elige automáticamente la ruta más rápida disponible.</p><div class="pulse-demo"><i></i><i></i><i></i><span>Conectado</span></div></article>
+        <article class="feature reveal"><div class="icon">⚡</div><h3>Velocidad sin castigo</h3><p>Streaming, juegos y llamadas con una conexión optimizada de baja latencia.</p><div class="meter"><span style="--w:92%"></span></div><small>Optimización 92%</small></article>
+        <article class="feature reveal"><div class="icon">◈</div><h3>Privacidad primero</h3><p>Cifrado moderno y una política clara: tu actividad no es nuestro negocio.</p><div class="privacy-code">AES · AWG · DNS SHIELD</div></article>
+        <article class="feature wide reveal"><div><div class="icon">◎</div><h3>Un mundo de posibilidades</h3><p>Cambia de ubicación en segundos y disfruta una experiencia global desde cualquier lugar.</p></div><div class="mini-globe"><span>🇫🇮</span><span>🇩🇪</span><span>🇳🇱</span><span>🇺🇸</span></div></article>
+      </div>
+    </section>
+
+    <section class="section servers" id="servidores">
+      <div class="shell server-layout">
+        <div class="server-copy reveal"><span>02 / RED GLOBAL</span><h2>Tu mejor ruta,<br>en cualquier lugar.</h2><p>Servidores estratégicos, selección inteligente y expansión continua.</p><div class="stats"><div><b data-count="12">0</b><small>Ubicaciones</small></div><div><b data-count="99">0</b><small>% disponibilidad</small></div><div><b data-count="24">0</b><small>Horas online</small></div></div></div>
+        <div class="map reveal"><div class="map-grid"></div><span class="node n1"></span><span class="node n2"></span><span class="node n3"></span><span class="node n4"></span><span class="node n5"></span><div class="route r1"></div><div class="route r2"></div><div class="map-label">Smart Route™ activa</div></div>
+      </div>
+    </section>
+
+    <section class="section shell" id="planes">
+      <div class="section-head centered reveal"><span>03 / PLANES</span><h2>Simple. Claro. Sin letra pequeña.</h2><p>Empieza gratis y mejora cuando necesites más potencia.</p></div>
+      <div class="pricing-grid">
+        <article class="price reveal"><small>FREE</small><h3>0 ₽</h3><p>Para probar la experiencia VeiCloud.</p><ul><li>1 dispositivo</li><li>Servidores gratuitos</li><li>Velocidad estándar</li></ul><a class="button ghost" href="#descargar">Comenzar gratis</a></article>
+        <article class="price featured reveal"><div class="popular">MÁS POPULAR</div><small>PREMIUM</small><h3>350 ₽ <span>/ mes</span></h3><p>Todo el rendimiento, sin compromisos.</p><ul><li>Hasta 3 dispositivos</li><li>Todas las ubicaciones</li><li>Máxima velocidad</li><li>Soporte prioritario</li></ul><a class="button primary" href="#descargar">Activar Premium</a></article>
+      </div>
+    </section>
+
+    <section class="section shell download reveal" id="descargar">
+      <div><span>DISPONIBLE MUY PRONTO</span><h2>Tu nueva forma de navegar empieza aquí.</h2><p>VeiCloud VPN para Android. Ligera, rápida y creada para desaparecer mientras te protege.</p><a class="button primary" href="#">Descargar para Android <span>↓</span></a></div>
+      <div class="download-art"><div class="ring"></div><div class="shield">V</div></div>
+    </section>
+
+    <section class="section shell faq" id="faq">
+      <div class="section-head reveal"><span>04 / PREGUNTAS</span><h2>Todo claro.</h2></div>
+      <div class="faq-list">
+        <details class="reveal"><summary>¿VeiCloud guarda mi actividad?<span>+</span></summary><p>No. VeiCloud VPN está diseñado para proteger tu conexión, no para registrar lo que haces.</p></details>
+        <details class="reveal"><summary>¿Cuántos dispositivos puedo usar?<span>+</span></summary><p>El plan Premium permite hasta 3 dispositivos vinculados a la misma cuenta.</p></details>
+        <details class="reveal"><summary>¿Funciona para streaming y juegos?<span>+</span></summary><p>Sí. La red prioriza rutas rápidas y estables para reducir cortes y latencia.</p></details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer shell"><a class="logo" href="#inicio"><span class="logo-mark">V</span><span>VeiCloud <b>VPN</b></span></a><p>© 2026 VeiCloud. Privacidad para todos.</p><div><a href="#">Privacidad</a><a href="#">Términos</a></div></footer>
 </body>
 </html>
