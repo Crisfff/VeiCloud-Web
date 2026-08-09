@@ -54,19 +54,11 @@ async function readJsonSafely(response) {
   }
 }
 
-function apiErrorMessage(status, payload) {
+function loginErrorMessage(status, payload) {
   const detail = payload?.detail;
 
-  if (status === 400) {
-    return typeof detail === "string" ? detail : "La solicitud no es válida.";
-  }
-
-  if (status === 401 || status === 403) {
+  if (status === 400 || status === 401 || status === 403) {
     return "Correo o contraseña incorrectos.";
-  }
-
-  if (status === 404 || status === 410) {
-    return "SESSION_EXPIRED";
   }
 
   if (status === 429) {
@@ -75,6 +67,26 @@ function apiErrorMessage(status, payload) {
 
   if (status >= 500) {
     return "VeiCloud no está disponible en este momento. Inténtalo de nuevo.";
+  }
+
+  return typeof detail === "string"
+    ? detail
+    : "No se pudo iniciar sesión.";
+}
+
+function approvalErrorMessage(status, payload) {
+  const detail = payload?.detail;
+
+  if (status === 404 || status === 410) {
+    return "SESSION_EXPIRED";
+  }
+
+  if (status === 401 || status === 403) {
+    return "Tu sesión de VeiCloud no pudo autorizar la TV.";
+  }
+
+  if (status >= 500) {
+    return "VeiCloud no pudo completar la autorización de la TV.";
   }
 
   return typeof detail === "string"
@@ -93,9 +105,7 @@ async function validateSession() {
       `${API_BASE}/api/tv-auth/session/${encodeURIComponent(sessionId)}`,
       {
         method: "GET",
-        headers: {
-          Accept: "application/json"
-        },
+        headers: { Accept: "application/json" },
         cache: "no-store"
       }
     );
@@ -120,8 +130,6 @@ async function validateSession() {
     emailInput?.focus();
     return true;
   } catch {
-    // La página sigue mostrando el formulario si la validación previa no
-    // está disponible. El POST de autorización hará la validación definitiva.
     showOnly(loginState);
     return true;
   }
@@ -165,23 +173,46 @@ form?.addEventListener("submit", async (event) => {
   setLoading(true);
 
   try {
-    const response = await fetch(`${API_BASE}/api/tv-auth/authorize`, {
+    // 1. Reutilizamos el login real que ya usa VeiCloud VPN.
+    const loginResponse = await fetch(`${API_BASE}/api/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json"
       },
-      body: JSON.stringify({
-        session_id: sessionId,
-        email,
-        password
-      })
+      body: JSON.stringify({ email, password })
     });
 
-    const payload = await readJsonSafely(response);
+    const loginPayload = await readJsonSafely(loginResponse);
 
-    if (!response.ok) {
-      const message = apiErrorMessage(response.status, payload);
+    if (!loginResponse.ok) {
+      setError(loginErrorMessage(loginResponse.status, loginPayload));
+      return;
+    }
+
+    const accessToken = loginPayload?.access_token;
+
+    if (!accessToken) {
+      setError("VeiCloud no devolvió una sesión válida.");
+      return;
+    }
+
+    // 2. La cuenta ya autenticada autoriza únicamente esta sesión de TV.
+    const approveResponse = await fetch(
+      `${API_BASE}/api/tv-auth/session/${encodeURIComponent(sessionId)}/approve`,
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    const approvePayload = await readJsonSafely(approveResponse);
+
+    if (!approveResponse.ok) {
+      const message = approvalErrorMessage(approveResponse.status, approvePayload);
 
       if (message === "SESSION_EXPIRED") {
         showOnly(expiredSession);
