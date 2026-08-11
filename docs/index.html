@@ -1,1 +1,131 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#050505"><meta name="description" content="VeiCloud VPN. Privacidad, velocidad y control."><title>VeiCloud VPN</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="phone.css"><script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script><script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script><script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script><script src="script.js" defer></script></head><body><canvas id="webgl"></canvas><div class="noise"></div><div class="cursor-aura"></div><div class="intro"><div class="intro-symbol">V</div><div class="intro-bar"></div><span>VEICLOUD PRIVATE NETWORK</span></div><header class="nav glass"><a class="brand" href="#home"><i>V</i><strong>VeiCloud</strong><span>VPN</span></a><nav><a href="#product">Producto</a><a href="#network">Red</a><a href="#plans">Planes</a><a href="#faq">FAQ</a></nav><a class="nav-button magnetic" href="#download">Descargar</a></header><main><section class="hero" id="home"><div class="hero-mesh"></div><div class="aurora aurora-top"></div><div class="aurora aurora-bottom"></div><div class="hero-copy"><div class="eyebrow">PRIVACIDAD SIN FRICCIÓN</div><h1>Internet<br><em>bajo tu control.</em></h1><p>VeiCloud VPN protege tu conexión, optimiza tu ruta y se mantiene fuera de tu camino.</p><div class="hero-actions"><a class="button primary magnetic" href="#download">Descargar para Android</a><a class="button ghost" href="#product">Explorar producto</a></div><div class="hero-proof"><span>Sin registros</span><span>AmneziaWG</span><span>3 dispositivos</span></div></div><div class="visual-stage"><div class="orbit orbit-a"></div><div class="orbit orbit-b"></div><div class="orbit orbit-c"></div><div class="device-wrap" id="device"><div class="device-glow"></div><div class="device app-device"><div class="camera"></div><div class="statusbar"><span>9:41</span><span>▮▮▮ 92%</span></div><div class="vc-header"><div class="vc-brand-lockup"><span class="vc-logo" aria-label="VeiCloud"><span></span><i></i><b></b><em></em><u></u></span><strong>VeiCloud <mark>VPN</mark></strong></div><span class="scan-icon"><i></i><b></b></span></div><div class="vpn-main"><button class="vc-power" aria-label="Conexión activa"><span></span></button><h3 class="connected">Conectado</h3><time>00:42:18</time></div><div class="vc-location"><span class="fi-flag"></span><div><small>Ubicación</small><strong>Finlandia</strong></div><span class="chevron"></span></div><div class="vc-spacer"></div><div class="vc-speeds"><div><span class="speed-ring down">↓</span><p><small>Descargado</small><strong>94.8</strong><em>Mbps</em></p></div><i></i><div><span class="speed-ring up">↑</span><p><small>Subido</small><strong>38.4</strong><em>Mbps</em></p></div></div><div class="vc-bottom"><div class="active"><span class="home-icon"><i></i></span><small>Inicio</small><b></b></div><div><span class="gear-icon"></span><small>Ajustes</small></div></div></div></div><div class="metric-card card-a glass"><span>24</span><div><small>LATENCIA</small><b>ms</b></div></div><div class="metric-card card-b glass"><i></i><div><small>ESTADO</small><b>Protegido</b></div></div><div class="metric-card card-c glass"><span>12</span><div><small>UBICACIONES</small><b>Globales</b></div></div></div><div class="scroll-note">SCROLL <i></i></div></section><section class="marquee"><div>PRIVATE BY DESIGN · FAST BY DEFAULT · BUILT FOR CONTROL · VEICLOUD VPN · </div></section><section class="section product" id="product"><div class="section-kicker">PRODUCTO</div><div class="section-heading"><h2>Minimal por fuera.<br><em>Potente por dentro.</em></h2><p>Una interfaz clara, una red rápida y una arquitectura creada para que la seguridad se sienta inmediata.</p></div><div class="feature-grid"><article class="feature feature-main glass reveal"><div class="feature-label">01 / CONEXIÓN</div><h3>Un toque.<br>Todo protegido.</h3><p>VeiCloud selecciona una ruta estable y establece el túnel automáticamente.</p><div class="radar"><i></i><i></i><i></i><span></span><b>ONLINE</b></div></article><article class="feature glass reveal"><div class="feature-label">02 / VELOCIDAD</div><h3>Rendimiento visible.</h3><p>Descarga, subida y latencia en tiempo real.</p><div class="graph"><span style="--h:36%"></span><span style="--h:62%"></span><span style="--h:51%"></span><span style="--h:84%"></span><span style="--h:96%"></span><span style="--h:75%"></span></div><div class="graph-line"></div></article><article class="feature glass reveal"><div class="feature-label">03 / PRIVACIDAD</div><h3>Sin perfiles.<br>Sin historial.</h3><p>Tu actividad no se convierte en un producto.</p><div class="secure-code">NO LOGS / ENCRYPTED / PRIVATE</div></article><article class="feature feature-wide glass reveal"><div><div class="feature-label">04 / PLATAFORMAS</div><h3>Empieza en Android.</h3><p>Una base sólida antes de llegar a cada pantalla.</p></div><div class="platform-list"><span class="active">ANDROID</span><span>WINDOWS</span><span>iOS</span></div></article></div></section><section class="section network" id="network"><div class="network-copy reveal"><div class="section-kicker">RED GLOBAL</div><h2>Tu mejor ruta.<br><em>Sin buscarla.</em></h2><p>Infraestructura distribuida, selección automática y rutas optimizadas para estabilidad y velocidad.</p><div class="metrics"><div><strong data-count="12">0</strong><span>Ubicaciones</span></div><div><strong data-count="99">0</strong><span>% uptime</span></div><div><strong data-count="24">0</strong><span>Horas online</span></div></div></div><div class="globe-panel glass reveal"><canvas id="globe"></canvas><div class="globe-status"><i></i> Smart Route activa</div></div></section><section class="section plans" id="plans"><div class="pricing-word">PRICING</div><div class="section-kicker">PLANES</div><div class="section-heading centered"><h2>Simple de elegir.<br><em>Difícil de dejar.</em></h2><p>Empieza gratis o desbloquea toda la red.</p></div><div class="pricing-grid"><article class="price-card glass reveal"><span>FREE</span><h3>0 ₽</h3><p>Para conocer VeiCloud.</p><ul><li>1 dispositivo</li><li>Ubicaciones gratuitas</li><li>Velocidad estándar</li></ul><a class="button ghost" href="#download">Empezar gratis</a></article><article class="price-card featured glass reveal"><div class="shine"></div><span>PREMIUM</span><h3>350 ₽ <small>/ mes</small></h3><p>La experiencia completa.</p><ul><li>Hasta 3 dispositivos</li><li>Todas las ubicaciones</li><li>Máxima velocidad disponible</li><li>Soporte prioritario</li></ul><a class="button primary magnetic" href="#download">Activar Premium</a></article></div></section><section class="download" id="download"><div class="download-orb"></div><div class="download-inner reveal"><div><div class="section-kicker">ANDROID</div><h2>Conecta.<br><em>Y sigue.</em></h2><p>VeiCloud VPN protege tu conexión sin convertir la seguridad en una tarea.</p><a class="button primary magnetic" href="#">Descargar VeiCloud VPN</a></div><div class="download-mark"><div>V</div><i></i><i></i><i></i></div></div></section><section class="section faq" id="faq"><div class="section-kicker">FAQ</div><div class="section-heading"><h2>Preguntas claras.<br><em>Respuestas también.</em></h2></div><div class="faq-list"><details><summary>¿VeiCloud guarda mi actividad?<span>+</span></summary><p>No. La actividad de navegación no forma parte del producto.</p></details><details><summary>¿Cuántos dispositivos puedo usar?<span>+</span></summary><p>Premium permite hasta 3 dispositivos vinculados.</p></details><details><summary>¿Sirve para streaming y juegos?<span>+</span></summary><p>Sí. La red prioriza estabilidad y baja latencia.</p></details></div></section></main><footer><a class="brand" href="#home"><i>V</i><strong>VeiCloud</strong><span>VPN</span></a><p>© 2026 VeiCloud</p><div><a href="#">Privacidad</a><a href="#">Términos</a></div></footer></body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#050505">
+  <meta name="description" content="VeiCloud VPN. Privacidad, velocidad y control.">
+  <title>VeiCloud VPN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="phone.css">
+  <link rel="stylesheet" href="compliance.css">
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+  <script src="script.js" defer></script>
+  <script src="i18n.js" defer></script>
+</head>
+<body>
+  <canvas id="webgl"></canvas>
+  <div class="noise"></div>
+  <div class="cursor-aura"></div>
+  <div class="intro"><div class="intro-symbol">V</div><div class="intro-bar"></div><span>VEICLOUD PRIVATE NETWORK</span></div>
+
+  <header class="nav glass">
+    <a class="brand" href="#home"><i>V</i><strong>VeiCloud</strong><span>VPN</span></a>
+    <nav>
+      <a href="#product" data-i18n="nav.product">Producto</a>
+      <a href="#network" data-i18n="nav.network">Red</a>
+      <a href="#plans" data-i18n="nav.plans">Planes</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-tools">
+      <div class="language-switcher" aria-label="Language selector">
+        <button type="button" data-lang="es" class="active">ES</button>
+        <button type="button" data-lang="ru">RU</button>
+        <button type="button" data-lang="en">EN</button>
+      </div>
+      <a class="nav-button magnetic" href="#download" data-i18n="nav.download">Descargar</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="home">
+      <div class="hero-mesh"></div><div class="aurora aurora-top"></div><div class="aurora aurora-bottom"></div>
+      <div class="hero-copy">
+        <div class="eyebrow" data-i18n="hero.eyebrow">PRIVACIDAD SIN FRICCIÓN</div>
+        <h1 data-i18n-html="hero.title">Internet<br><em>bajo tu control.</em></h1>
+        <p data-i18n="hero.text">VeiCloud VPN protege tu conexión, optimiza tu ruta y se mantiene fuera de tu camino.</p>
+        <div class="hero-actions">
+          <a class="button primary magnetic" href="#download" data-i18n="hero.download">Descargar para Android</a>
+          <a class="button ghost" href="#product" data-i18n="hero.explore">Explorar producto</a>
+        </div>
+        <div class="hero-proof"><span data-i18n="hero.nologs">Sin registros</span><span>AmneziaWG</span><span data-i18n="hero.devices">3 dispositivos</span></div>
+      </div>
+
+      <div class="visual-stage">
+        <div class="orbit orbit-a"></div><div class="orbit orbit-b"></div><div class="orbit orbit-c"></div>
+        <div class="device-wrap" id="device">
+          <div class="device-glow"></div>
+          <div class="device app-device">
+            <div class="camera"></div>
+            <div class="statusbar"><span>9:41</span><span>▮▮▮ 92%</span></div>
+            <div class="vc-header"><div class="vc-brand-lockup"><span class="vc-logo" aria-label="VeiCloud"><span></span><i></i><b></b><em></em><u></u></span><strong>VeiCloud <mark>VPN</mark></strong></div><span class="scan-icon"><i></i><b></b></span></div>
+            <div class="vpn-main"><button class="vc-power" aria-label="Conexión activa"><span></span></button><h3 class="connected" data-i18n="phone.connected">Conectado</h3><time>00:42:18</time></div>
+            <div class="vc-location"><span class="fi-flag"></span><div><small data-i18n="phone.location">Ubicación</small><strong data-i18n="phone.finland">Finlandia</strong></div><span class="chevron"></span></div>
+            <div class="vc-spacer"></div>
+            <div class="vc-speeds"><div><span class="speed-ring down">↓</span><p><small data-i18n="phone.downloaded">Descargado</small><strong>94.8</strong><em>Mbps</em></p></div><i></i><div><span class="speed-ring up">↑</span><p><small data-i18n="phone.uploaded">Subido</small><strong>38.4</strong><em>Mbps</em></p></div></div>
+            <div class="vc-bottom"><div class="active"><span class="home-icon"><i></i></span><small data-i18n="phone.home">Inicio</small><b></b></div><div><span class="gear-icon"></span><small data-i18n="phone.settings">Ajustes</small></div></div>
+          </div>
+        </div>
+        <div class="metric-card card-a glass"><span>24</span><div><small data-i18n="metric.latency">LATENCIA</small><b>ms</b></div></div>
+        <div class="metric-card card-b glass"><i></i><div><small data-i18n="metric.status">ESTADO</small><b data-i18n="metric.protected">Protegido</b></div></div>
+        <div class="metric-card card-c glass"><span>4</span><div><small data-i18n="metric.locations">UBICACIONES</small><b data-i18n="metric.available">Disponibles</b></div></div>
+      </div>
+      <div class="scroll-note">SCROLL <i></i></div>
+    </section>
+
+    <section class="marquee"><div>PRIVATE BY DESIGN · FAST BY DEFAULT · BUILT FOR CONTROL · VEICLOUD VPN · </div></section>
+
+    <section class="section product" id="product">
+      <div class="section-kicker" data-i18n="product.kicker">PRODUCTO</div>
+      <div class="section-heading"><h2 data-i18n-html="product.title">Minimal por fuera.<br><em>Potente por dentro.</em></h2><p data-i18n="product.text">Una interfaz clara, una red rápida y una arquitectura creada para que la seguridad se sienta inmediata.</p></div>
+      <div class="feature-grid">
+        <article class="feature feature-main glass reveal"><div class="feature-label">01 / <span data-i18n="product.connection">CONEXIÓN</span></div><h3 data-i18n-html="product.oneTitle">Un toque.<br>Todo protegido.</h3><p data-i18n="product.oneText">VeiCloud selecciona una ruta estable y establece el túnel automáticamente.</p><div class="radar"><i></i><i></i><i></i><span></span><b>ONLINE</b></div></article>
+        <article class="feature glass reveal"><div class="feature-label">02 / <span data-i18n="product.speed">VELOCIDAD</span></div><h3 data-i18n="product.twoTitle">Rendimiento visible.</h3><p data-i18n="product.twoText">Descarga, subida y latencia en tiempo real.</p><div class="graph"><span style="--h:36%"></span><span style="--h:62%"></span><span style="--h:51%"></span><span style="--h:84%"></span><span style="--h:96%"></span><span style="--h:75%"></span></div><div class="graph-line"></div></article>
+        <article class="feature glass reveal"><div class="feature-label">03 / <span data-i18n="product.privacy">PRIVACIDAD</span></div><h3 data-i18n-html="product.threeTitle">Sin perfiles.<br>Sin historial.</h3><p data-i18n="product.threeText">Tu actividad no se convierte en un producto.</p><div class="secure-code">NO LOGS / ENCRYPTED / PRIVATE</div></article>
+        <article class="feature feature-wide glass reveal"><div><div class="feature-label">04 / <span data-i18n="product.platforms">PLATAFORMAS</span></div><h3 data-i18n="product.fourTitle">Empieza en Android.</h3><p data-i18n="product.fourText">Una base sólida antes de llegar a cada pantalla.</p></div><div class="platform-list"><span class="active">ANDROID</span><span>WINDOWS</span><span>iOS</span></div></article>
+      </div>
+    </section>
+
+    <section class="section network" id="network">
+      <div class="network-copy reveal"><div class="section-kicker" data-i18n="network.kicker">RED VEICLOUD</div><h2 data-i18n-html="network.title">Tu mejor ruta.<br><em>Sin buscarla.</em></h2><p data-i18n="network.text">Cuatro ubicaciones disponibles actualmente, con selección de ruta orientada a estabilidad y velocidad.</p><div class="metrics"><div><strong data-count="4">0</strong><span data-i18n="network.locations">Ubicaciones</span></div><div><strong data-count="99">0</strong><span>% uptime</span></div><div><strong data-count="24">0</strong><span data-i18n="network.hours">Horas online</span></div></div></div>
+      <div class="globe-panel glass reveal"><canvas id="globe"></canvas><div class="globe-status"><i></i> <span data-i18n="network.smart">Smart Route activa</span></div></div>
+    </section>
+
+    <section class="section plans" id="plans">
+      <div class="pricing-word">PRICING</div><div class="section-kicker" data-i18n="plans.kicker">PLANES</div>
+      <div class="section-heading centered"><h2 data-i18n-html="plans.title">Simple de elegir.<br><em>Difícil de dejar.</em></h2><p data-i18n="plans.text">Empieza gratis o desbloquea toda la red.</p></div>
+      <div class="pricing-grid">
+        <article class="price-card glass reveal"><span>FREE</span><h3>0 ₽</h3><p data-i18n="plans.freeText">Para conocer VeiCloud.</p><ul><li data-i18n="plans.free1">1 dispositivo</li><li data-i18n="plans.free2">Ubicaciones gratuitas disponibles</li><li data-i18n="plans.free3">Velocidad estándar</li></ul><a class="button ghost" href="#download" data-i18n="plans.start">Empezar gratis</a></article>
+        <article class="price-card featured glass reveal"><div class="shine"></div><span>PREMIUM</span><h3>350 ₽ <small data-i18n="plans.month">/ mes</small></h3><p data-i18n="plans.premiumText">La experiencia completa.</p><ul><li data-i18n="plans.premium1">Hasta 3 dispositivos</li><li data-i18n="plans.premium2">Las 4 ubicaciones actuales</li><li data-i18n="plans.premium3">Máxima velocidad disponible</li><li data-i18n="plans.premium4">Soporte prioritario</li></ul><a class="button primary magnetic" href="#download" data-i18n="plans.activate">Activar Premium</a></article>
+      </div>
+    </section>
+
+    <section class="download" id="download"><div class="download-orb"></div><div class="download-inner reveal"><div><div class="section-kicker">ANDROID</div><h2 data-i18n-html="download.title">Conecta.<br><em>Y sigue.</em></h2><p data-i18n="download.text">VeiCloud VPN protege tu conexión sin convertir la seguridad en una tarea.</p><a class="button primary magnetic" href="#" data-i18n="download.button">Descargar VeiCloud VPN</a></div><div class="download-mark"><div>V</div><i></i><i></i><i></i></div></div></section>
+
+    <section class="section faq" id="faq"><div class="section-kicker">FAQ</div><div class="section-heading"><h2 data-i18n-html="faq.title">Preguntas claras.<br><em>Respuestas también.</em></h2></div><div class="faq-list"><details><summary><span data-i18n="faq.q1">¿VeiCloud guarda mi actividad?</span><span>+</span></summary><p data-i18n="faq.a1">No. La actividad de navegación no forma parte del producto.</p></details><details><summary><span data-i18n="faq.q2">¿Cuántos dispositivos puedo usar?</span><span>+</span></summary><p data-i18n="faq.a2">Premium permite hasta 3 dispositivos vinculados.</p></details><details><summary><span data-i18n="faq.q3">¿Sirve para streaming y juegos?</span><span>+</span></summary><p data-i18n="faq.a3">La red está diseñada para priorizar estabilidad y baja latencia.</p></details></div></section>
+
+    <section class="section compliance" id="legal">
+      <div class="section-kicker" data-i18n="legal.kicker">INFORMACIÓN DEL SERVICIO</div>
+      <div class="section-heading"><h2 data-i18n-html="legal.title">Todo claro.<br><em>Antes de pagar.</em></h2><p data-i18n="legal.text">Consulta las condiciones del servicio, privacidad, cancelaciones, reembolsos y datos de contacto.</p></div>
+      <div class="legal-grid">
+        <a class="legal-card glass" href="offer.html"><span>01</span><strong data-i18n="legal.offer">Oferta pública y condiciones</strong><small data-i18n="legal.open">Abrir documento →</small></a>
+        <a class="legal-card glass" href="privacy.html"><span>02</span><strong data-i18n="legal.privacy">Política de privacidad</strong><small data-i18n="legal.open">Abrir documento →</small></a>
+        <a class="legal-card glass" href="refund.html"><span>03</span><strong data-i18n="legal.refund">Cancelación y reembolsos</strong><small data-i18n="legal.open">Abrir documento →</small></a>
+        <a class="legal-card glass" href="contacts.html"><span>04</span><strong data-i18n="legal.contacts">Contacto y soporte</strong><small data-i18n="legal.open">Abrir documento →</small></a>
+      </div>
+      <p class="digital-delivery" data-i18n="legal.delivery">VeiCloud VPN es un servicio digital. No existe entrega física. El acceso a las funciones contratadas se habilita digitalmente tras la confirmación del pago.</p>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brand" href="#home"><i>V</i><strong>VeiCloud</strong><span>VPN</span></a>
+    <p>© 2026 VeiCloud VPN</p>
+    <div class="footer-links"><a href="privacy.html" data-i18n="footer.privacy">Privacidad</a><a href="offer.html" data-i18n="footer.offer">Oferta pública</a><a href="refund.html" data-i18n="footer.refund">Reembolsos</a><a href="contacts.html" data-i18n="footer.contacts">Contacto</a></div>
+  </footer>
+</body>
+</html>
