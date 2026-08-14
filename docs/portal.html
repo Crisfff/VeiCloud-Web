@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#070707">
+  <meta name="description" content="Panel de control de VeiCloud VPN">
+  <title>Mi cuenta | VeiCloud VPN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="portal.css">
+  <script src="portal.js" defer></script>
+</head>
+<body>
+  <div class="portal-bg"><span></span><span></span></div>
+
+  <header class="portal-nav">
+    <a class="portal-brand" href="index.html" aria-label="Volver a VeiCloud VPN">
+      <i>V</i>
+      <strong>VeiCloud</strong>
+      <span>VPN</span>
+    </a>
+    <a class="back-site" href="index.html">Volver al sitio</a>
+  </header>
+
+  <main class="portal-shell">
+    <section class="auth-layout" id="authView">
+      <div class="auth-copy">
+        <span class="eyebrow">VEICLOUD CONTROL</span>
+        <h1>Tu VPN.<br><em>Tu cuenta.</em></h1>
+        <p>Inicia sesión para consultar tu plan, dispositivos y estado de la suscripción desde cualquier navegador.</p>
+        <div class="security-note"><i></i><span>La cuenta es la misma que utilizas en VeiCloud VPN para Android y TV.</span></div>
+      </div>
+
+      <section class="auth-card">
+        <div class="auth-tabs" role="tablist">
+          <button id="loginTab" class="active" type="button">Iniciar sesión</button>
+          <button id="registerTab" type="button">Crear cuenta</button>
+        </div>
+
+        <form id="loginForm" class="auth-form" autocomplete="on">
+          <div class="form-heading">
+            <span>BIENVENIDO</span>
+            <h2>Entra a tu cuenta</h2>
+          </div>
+          <label>
+            <span>Correo electrónico</span>
+            <input id="loginEmail" type="email" autocomplete="email" placeholder="nombre@correo.com" required>
+          </label>
+          <label>
+            <span>Contraseña</span>
+            <div class="password-field">
+              <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Tu contraseña" required>
+              <button class="toggle-password" type="button" data-target="loginPassword">Ver</button>
+            </div>
+          </label>
+          <p class="form-error hidden" id="loginError"></p>
+          <button class="submit-button" id="loginSubmit" type="submit"><span>Iniciar sesión</span><i></i></button>
+          <p class="form-switch">¿Todavía no tienes cuenta? <button type="button" data-open-register>Crear cuenta</button></p>
+        </form>
+
+        <form id="registerForm" class="auth-form hidden" autocomplete="on">
+          <div class="form-heading">
+            <span>NUEVA CUENTA</span>
+            <h2>Empieza con VeiCloud</h2>
+          </div>
+          <label>
+            <span>Correo electrónico</span>
+            <input id="registerEmail" type="email" autocomplete="email" placeholder="nombre@correo.com" required>
+          </label>
+          <label>
+            <span>Contraseña</span>
+            <div class="password-field">
+              <input id="registerPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres" required>
+              <button class="toggle-password" type="button" data-target="registerPassword">Ver</button>
+            </div>
+          </label>
+          <label>
+            <span>Confirmar contraseña</span>
+            <div class="password-field">
+              <input id="registerConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="Repite la contraseña" required>
+              <button class="toggle-password" type="button" data-target="registerConfirm">Ver</button>
+            </div>
+          </label>
+          <p class="form-error hidden" id="registerError"></p>
+          <button class="submit-button" id="registerSubmit" type="submit"><span>Crear cuenta</span><i></i></button>
+          <p class="terms-copy">Al crear una cuenta aceptas las condiciones del servicio y la política de privacidad de VeiCloud VPN.</p>
+          <p class="form-switch">¿Ya tienes cuenta? <button type="button" data-open-login>Iniciar sesión</button></p>
+        </form>
+      </section>
+    </section>
+
+    <section class="dashboard hidden" id="dashboardView">
+      <aside class="dashboard-sidebar">
+        <a class="sidebar-brand" href="index.html"><i>V</i><div><strong>VeiCloud</strong><span>VPN</span></div></a>
+        <nav>
+          <button class="side-item active" type="button"><span>⌂</span><b>Resumen</b></button>
+          <button class="side-item" type="button" data-scroll-devices><span>▣</span><b>Dispositivos</b></button>
+          <a class="side-item" href="index.html#plans"><span>◇</span><b>Planes</b></a>
+        </nav>
+        <button class="logout-button" id="logoutButton" type="button"><span>↗</span>Cerrar sesión</button>
+      </aside>
+
+      <div class="dashboard-content">
+        <header class="dashboard-topbar">
+          <div>
+            <span class="eyebrow">PANEL DE CONTROL</span>
+            <h1>Hola, <span id="welcomeName">VeiCloud</span></h1>
+          </div>
+          <div class="account-chip"><span id="accountInitial">V</span><div><strong id="chipEmail">Cargando...</strong><small id="chipId">ID · ------</small></div></div>
+        </header>
+
+        <div class="dashboard-alert hidden" id="dashboardError"></div>
+
+        <section class="plan-hero">
+          <div class="plan-glow"></div>
+          <div>
+            <span>PLAN ACTUAL</span>
+            <h2 id="planName">Cargando...</h2>
+            <p id="planStatus">Consultando tu cuenta</p>
+          </div>
+          <div class="plan-capacity">
+            <div class="capacity-ring" id="capacityRing"><strong id="devicesFraction">0/0</strong><span>dispositivos</span></div>
+          </div>
+        </section>
+
+        <section class="stats-grid">
+          <article><span>Estado</span><strong id="subscriptionStatus">...</strong><small id="subscriptionUntil">Comprobando suscripción</small></article>
+          <article><span>ID VeiCloud</span><strong id="publicId">------</strong><small>Identificador de tu cuenta</small></article>
+          <article><span>Disponibles</span><strong id="devicesAvailable">0</strong><small>Espacios libres en tu plan</small></article>
+        </section>
+
+        <section class="dashboard-section" id="devicesSection">
+          <div class="section-title"><div><span>DISPOSITIVOS</span><h2>Accesos de tu cuenta</h2></div><button id="refreshButton" type="button">Actualizar</button></div>
+          <div class="devices-list" id="devicesList"><div class="loading-card">Cargando dispositivos...</div></div>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
