@@ -14,34 +14,29 @@ const refreshButton = document.getElementById("refreshButton");
 const devicesList = document.getElementById("devicesList");
 const dashboardError = document.getElementById("dashboardError");
 
+function refreshIcons() {
+  if (window.lucide) window.lucide.createIcons();
+}
+
 function getToken() {
   return localStorage.getItem(TOKEN_KEY) || "";
 }
-
 function saveToken(token) {
   localStorage.setItem(TOKEN_KEY, token);
 }
-
 function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
-
 function showError(element, message) {
   element.textContent = message || "";
   element.classList.toggle("hidden", !message);
 }
-
 function setLoading(button, loading) {
   button.disabled = loading;
   button.classList.toggle("loading", loading);
 }
-
 async function readJson(response) {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
+  try { return await response.json(); } catch { return null; }
 }
 
 function authMessage(status, payload, mode) {
@@ -63,56 +58,45 @@ function openLogin() {
   loginForm.classList.remove("hidden");
   registerForm.classList.add("hidden");
   history.replaceState(null, "", "#login");
+  refreshIcons();
 }
-
 function openRegister() {
   registerTab.classList.add("active");
   loginTab.classList.remove("active");
   registerForm.classList.remove("hidden");
   loginForm.classList.add("hidden");
   history.replaceState(null, "", "#register");
+  refreshIcons();
 }
-
 function showDashboard() {
   authView.classList.add("hidden");
   dashboardView.classList.remove("hidden");
+  refreshIcons();
 }
-
 function showAuth() {
   dashboardView.classList.add("hidden");
   authView.classList.remove("hidden");
+  refreshIcons();
 }
 
 async function api(path, options = {}) {
   const token = getToken();
-  const headers = {
-    Accept: "application/json",
-    ...(options.headers || {})
-  };
+  const headers = { Accept: "application/json", ...(options.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
-
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-    cache: "no-store"
-  });
-
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers, cache: "no-store" });
   const payload = await readJson(response);
-
   if (response.status === 401 && token) {
     clearToken();
     showAuth();
     openLogin();
     throw new Error("SESSION_EXPIRED");
   }
-
   if (!response.ok) {
     const error = new Error(payload?.detail || `HTTP ${response.status}`);
     error.status = response.status;
     error.payload = payload;
     throw error;
   }
-
   return payload;
 }
 
@@ -122,31 +106,38 @@ function normalizePlan(value) {
   if (plan === "premium") return "Premium";
   return "Standard";
 }
-
 function formatPublicId(value, fallback) {
   const raw = String(value || fallback || "").replace(/\D/g, "");
   return raw ? raw.padStart(6, "0").slice(-6) : "------";
 }
-
 function formatDate(value) {
   if (!value) return "Sin fecha de vencimiento";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Fecha no disponible";
   return new Intl.DateTimeFormat("es", { day: "2-digit", month: "short", year: "numeric" }).format(date);
 }
-
 function deviceIcon(type, guest) {
-  if (guest) return "◇";
+  if (guest) return "user-round-plus";
   const value = String(type || "").toLowerCase();
-  if (value.includes("tv")) return "▭";
-  if (value.includes("web")) return "◫";
-  return "▯";
+  if (value.includes("tv")) return "tv";
+  if (value.includes("web") || value.includes("pc") || value.includes("windows")) return "monitor";
+  if (value.includes("tablet")) return "tablet";
+  return "smartphone";
+}
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function renderDevices(data) {
   const items = Array.isArray(data?.devices) ? data.devices : [];
   if (!items.length) {
-    devicesList.innerHTML = '<div class="empty-card">No hay dispositivos registrados en esta cuenta.</div>';
+    devicesList.innerHTML = '<div class="empty-card"><i data-lucide="monitor-off"></i>No hay dispositivos registrados en esta cuenta.</div>';
+    refreshIcons();
     return;
   }
 
@@ -158,42 +149,32 @@ function renderDevices(data) {
     const locationCount = Number(device.server_count || 0);
     const subtitle = guest ? "Invitado" : type.toUpperCase();
     const locationText = locationCount ? `${locationCount} ubicacion${locationCount === 1 ? "" : "es"}` : "Acceso VeiCloud";
+    const icon = deviceIcon(type, guest);
     return `
       <article class="device-row">
         <div class="device-main">
-          <div class="device-icon">${deviceIcon(type, guest)}</div>
+          <div class="device-icon"><i data-lucide="${icon}"></i></div>
           <div class="device-copy">
             <strong>${escapeHtml(name)}</strong>
             <small>${escapeHtml(subtitle)} · ${escapeHtml(locationText)}</small>
           </div>
         </div>
         <div class="device-meta">
-          <span>${active ? "Activo" : "Inactivo"}</span>
+          <span class="${active ? "" : "inactive"}">${active ? "Activo" : "Inactivo"}</span>
           <small>${device.last_seen_at ? `Último acceso ${formatDate(device.last_seen_at)}` : "Registrado en VeiCloud"}</small>
         </div>
       </article>`;
   }).join("");
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+  refreshIcons();
 }
 
 async function loadDashboard() {
   dashboardError.classList.add("hidden");
-  devicesList.innerHTML = '<div class="loading-card">Cargando dispositivos...</div>';
-
+  devicesList.innerHTML = '<div class="loading-card"><i data-lucide="loader-circle"></i>Cargando dispositivos...</div>';
+  refreshIcons();
+  refreshButton.querySelector("svg")?.classList.add("spin");
   try {
-    const [user, devices] = await Promise.all([
-      api("/api/user/me"),
-      api("/api/vpn/devices")
-    ]);
-
+    const [user, devices] = await Promise.all([api("/api/user/me"), api("/api/vpn/devices")]);
     const plan = normalizePlan(devices?.plan || user?.plan);
     const maxDevices = Number(devices?.max_devices ?? user?.max_devices ?? 1);
     const used = Number(devices?.devices_used ?? devices?.devices?.length ?? 0);
@@ -214,16 +195,17 @@ async function loadDashboard() {
     document.getElementById("devicesAvailable").textContent = String(available);
     document.getElementById("subscriptionStatus").textContent = active ? "Activa" : "Inactiva";
     document.getElementById("subscriptionUntil").textContent = premiumUntil ? `Válida hasta ${formatDate(premiumUntil)}` : "Cuenta VeiCloud activa";
-
     const degrees = maxDevices > 0 ? Math.min(used / maxDevices, 1) * 360 : 0;
     document.getElementById("capacityRing").style.setProperty("--usage", `${degrees}deg`);
-
     renderDevices(devices);
   } catch (error) {
     if (error.message === "SESSION_EXPIRED") return;
     dashboardError.textContent = "No se pudieron cargar todos los datos de tu cuenta. Comprueba la conexión e inténtalo de nuevo.";
     dashboardError.classList.remove("hidden");
-    devicesList.innerHTML = '<div class="empty-card">No se pudieron cargar los dispositivos.</div>';
+    devicesList.innerHTML = '<div class="empty-card"><i data-lucide="triangle-alert"></i>No se pudieron cargar los dispositivos.</div>';
+    refreshIcons();
+  } finally {
+    refreshButton.querySelector("svg")?.classList.remove("spin");
   }
 }
 
@@ -237,101 +219,63 @@ document.querySelectorAll(".toggle-password").forEach((button) => {
     const input = document.getElementById(button.dataset.target);
     const showing = input.type === "text";
     input.type = showing ? "password" : "text";
-    button.textContent = showing ? "Ver" : "Ocultar";
+    button.innerHTML = `<i data-lucide="${showing ? "eye" : "eye-off"}"></i>`;
+    button.setAttribute("aria-label", showing ? "Mostrar contraseña" : "Ocultar contraseña");
+    refreshIcons();
   });
 });
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   showError(loginError, "");
-
   const email = document.getElementById("loginEmail").value.trim().toLowerCase();
   const password = document.getElementById("loginPassword").value;
   const button = document.getElementById("loginSubmit");
   setLoading(button, true);
-
   try {
-    const response = await fetch(`${API_BASE}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ email, password })
-    });
+    const response = await fetch(`${API_BASE}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ email, password }) });
     const payload = await readJson(response);
-    if (!response.ok) {
-      showError(loginError, authMessage(response.status, payload, "login"));
-      return;
-    }
-    if (!payload?.access_token) {
-      showError(loginError, "VeiCloud no devolvió una sesión válida.");
-      return;
-    }
+    if (!response.ok) { showError(loginError, authMessage(response.status, payload, "login")); return; }
+    if (!payload?.access_token) { showError(loginError, "VeiCloud no devolvió una sesión válida."); return; }
     saveToken(payload.access_token);
     document.getElementById("loginPassword").value = "";
     showDashboard();
     await loadDashboard();
-  } catch {
-    showError(loginError, "No se pudo conectar con VeiCloud. Revisa tu conexión.");
-  } finally {
-    setLoading(button, false);
-  }
+  } catch { showError(loginError, "No se pudo conectar con VeiCloud. Revisa tu conexión."); }
+  finally { setLoading(button, false); }
 });
 
 registerForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   showError(registerError, "");
-
   const email = document.getElementById("registerEmail").value.trim().toLowerCase();
   const password = document.getElementById("registerPassword").value;
   const confirm = document.getElementById("registerConfirm").value;
   const button = document.getElementById("registerSubmit");
-
-  if (password.length < 8) {
-    showError(registerError, "La contraseña debe tener al menos 8 caracteres.");
-    return;
-  }
-  if (password !== confirm) {
-    showError(registerError, "Las contraseñas no coinciden.");
-    return;
-  }
-
+  if (password.length < 8) { showError(registerError, "La contraseña debe tener al menos 8 caracteres."); return; }
+  if (password !== confirm) { showError(registerError, "Las contraseñas no coinciden."); return; }
   setLoading(button, true);
   try {
-    const response = await fetch(`${API_BASE}/api/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ email, password })
-    });
+    const response = await fetch(`${API_BASE}/api/auth/register`, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ email, password }) });
     const payload = await readJson(response);
-    if (!response.ok) {
-      showError(registerError, authMessage(response.status, payload, "register"));
-      return;
-    }
-    if (!payload?.access_token) {
-      showError(registerError, "La cuenta fue creada, pero no se pudo abrir la sesión.");
-      return;
-    }
+    if (!response.ok) { showError(registerError, authMessage(response.status, payload, "register")); return; }
+    if (!payload?.access_token) { showError(registerError, "La cuenta fue creada, pero no se pudo abrir la sesión."); return; }
     saveToken(payload.access_token);
     document.getElementById("registerPassword").value = "";
     document.getElementById("registerConfirm").value = "";
     showDashboard();
     await loadDashboard();
-  } catch {
-    showError(registerError, "No se pudo conectar con VeiCloud. Revisa tu conexión.");
-  } finally {
-    setLoading(button, false);
-  }
+  } catch { showError(registerError, "No se pudo conectar con VeiCloud. Revisa tu conexión."); }
+  finally { setLoading(button, false); }
 });
 
-logoutButton.addEventListener("click", () => {
-  clearToken();
-  showAuth();
-  openLogin();
-});
-
+logoutButton.addEventListener("click", () => { clearToken(); showAuth(); openLogin(); });
 refreshButton.addEventListener("click", loadDashboard);
 document.querySelectorAll("[data-scroll-devices]").forEach((button) => button.addEventListener("click", () => document.getElementById("devicesSection").scrollIntoView({ behavior: "smooth" })));
 
+window.addEventListener("load", refreshIcons);
 (async function boot() {
+  refreshIcons();
   if (getToken()) {
     showDashboard();
     await loadDashboard();
