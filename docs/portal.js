@@ -13,7 +13,6 @@ const logoutButton = document.getElementById("logoutButton");
 const refreshButton = document.getElementById("refreshButton");
 const devicesList = document.getElementById("devicesList");
 const dashboardError = document.getElementById("dashboardError");
-
 const addAccessButton = document.getElementById("addAccessButton");
 const accessModal = document.getElementById("accessModal");
 const guestOption = document.getElementById("guestOption");
@@ -46,15 +45,15 @@ function clearToken() {
 }
 
 function showError(element, message) {
+  if (!element) return;
   element.textContent = message || "";
   element.classList.toggle("hidden", !message);
 }
 
-function setLoading(button, loading, label) {
+function setLoading(button, loading) {
   if (!button) return;
   button.disabled = loading;
   button.classList.toggle("loading", loading);
-  if (label) button.dataset.originalLabel = button.textContent;
 }
 
 async function readJson(response) {
@@ -75,7 +74,9 @@ function authMessage(status, payload, mode) {
   }
   if (status === 429) return "Demasiados intentos. Espera un momento e inténtalo de nuevo.";
   if (status >= 500) return "VeiCloud no está disponible en este momento.";
-  return typeof detail === "string" ? detail : `No se pudo ${mode === "register" ? "crear la cuenta" : "iniciar sesión"}.`;
+  return typeof detail === "string"
+    ? detail
+    : `No se pudo ${mode === "register" ? "crear la cuenta" : "iniciar sesión"}.`;
 }
 
 function apiErrorMessage(error, fallback) {
@@ -178,6 +179,15 @@ function formatDate(value) {
   }).format(date);
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function devicePresentation(device) {
   const type = String(device?.device_type || "").toLowerCase();
   const accessType = String(device?.access_type || "").toLowerCase();
@@ -188,7 +198,8 @@ function devicePresentation(device) {
       icon: "key-round",
       badge: "Amnezia VPN",
       badgeClass: "amnezia",
-      subtitle: "Acceso Amnezia"
+      subtitle: "Acceso Amnezia",
+      deleteLabel: "Eliminar acceso Amnezia VPN"
     };
   }
 
@@ -197,7 +208,8 @@ function devicePresentation(device) {
       icon: "user-round-plus",
       badge: "Invitado VeiCloud VPN",
       badgeClass: "guest",
-      subtitle: "Invitado"
+      subtitle: "Invitado",
+      deleteLabel: "Eliminar invitado VeiCloud VPN"
     };
   }
 
@@ -210,17 +222,9 @@ function devicePresentation(device) {
     icon,
     badge: "VeiCloud VPN",
     badgeClass: "owner",
-    subtitle: type ? type.toUpperCase() : "DISPOSITIVO"
+    subtitle: type ? type.toUpperCase() : "DISPOSITIVO",
+    deleteLabel: "Eliminar dispositivo VeiCloud VPN"
   };
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }
 
 function renderDevices(data) {
@@ -240,9 +244,10 @@ function renderDevices(data) {
     const locationText = locationCount
       ? `${locationCount} ubicacion${locationCount === 1 ? "" : "es"}`
       : "Sin acceso VPN asignado";
+    const databaseId = Number(device.id);
 
     return `
-      <article class="device-row">
+      <article class="device-row" data-device-row="${databaseId}">
         <div class="device-main">
           <div class="device-icon"><i data-lucide="${presentation.icon}"></i></div>
           <div class="device-copy">
@@ -250,14 +255,72 @@ function renderDevices(data) {
             <small>${escapeHtml(presentation.subtitle)} · ${escapeHtml(locationText)}</small>
           </div>
         </div>
-        <div class="device-meta">
-          <span class="${active ? "" : "inactive"}">${active ? "Activo" : "Inactivo"}</span>
-          <small>${device.last_seen_at ? `Último acceso ${formatDate(device.last_seen_at)}` : "Registrado en VeiCloud"}</small>
+        <div style="display:flex;align-items:center;gap:12px;flex:0 0 auto">
+          <div class="device-meta">
+            <span class="${active ? "" : "inactive"}">${active ? "Activo" : "Inactivo"}</span>
+            <small>${device.last_seen_at ? `Último acceso ${formatDate(device.last_seen_at)}` : "Registrado en VeiCloud"}</small>
+          </div>
+          <button
+            type="button"
+            data-delete-device="${databaseId}"
+            data-device-name="${escapeHtml(name)}"
+            data-delete-label="${escapeHtml(presentation.deleteLabel)}"
+            aria-label="${escapeHtml(presentation.deleteLabel)}"
+            title="${escapeHtml(presentation.deleteLabel)}"
+            style="width:38px;height:38px;border-radius:11px;border:1px solid rgba(255,67,37,.18);background:rgba(255,67,37,.055);color:#ff6a50;display:grid;place-items:center;cursor:pointer;flex:0 0 auto;transition:.2s"
+          ><i data-lucide="trash-2"></i></button>
         </div>
       </article>`;
   }).join("");
 
   refreshIcons();
+}
+
+async function deleteDevice(deviceId, deviceName, deleteLabel, button) {
+  if (!deviceId) return;
+
+  const confirmed = window.confirm(
+    `${deleteLabel || "Eliminar acceso"}\n\n` +
+    `¿Seguro que quieres eliminar “${deviceName || "este dispositivo"}”?\n\n` +
+    "Se revocarán sus configuraciones VPN y perderá el acceso inmediatamente."
+  );
+
+  if (!confirmed) return;
+
+  const originalHtml = button?.innerHTML || "";
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.style.opacity = ".55";
+      button.style.cursor = "wait";
+      button.innerHTML = '<i data-lucide="loader-circle"></i>';
+      refreshIcons();
+      button.querySelector("svg")?.classList.add("spin");
+    }
+
+    dashboardError.classList.add("hidden");
+
+    await api(`/api/vpn/devices/${deviceId}`, {
+      method: "DELETE"
+    });
+
+    await loadDashboard();
+  } catch (error) {
+    dashboardError.textContent = apiErrorMessage(
+      error,
+      "No se pudo eliminar el dispositivo o acceso. Inténtalo de nuevo."
+    );
+    dashboardError.classList.remove("hidden");
+
+    if (button) {
+      button.disabled = false;
+      button.style.opacity = "1";
+      button.style.cursor = "pointer";
+      button.innerHTML = originalHtml;
+      refreshIcons();
+    }
+  }
 }
 
 async function loadDashboard() {
@@ -290,14 +353,18 @@ async function loadDashboard() {
     document.getElementById("publicId").textContent = publicId;
     document.getElementById("devicesAvailable").textContent = String(available);
     document.getElementById("subscriptionStatus").textContent = active ? "Activa" : "Inactiva";
-    document.getElementById("subscriptionUntil").textContent = premiumUntil ? `Válida hasta ${formatDate(premiumUntil)}` : "Cuenta VeiCloud activa";
+    document.getElementById("subscriptionUntil").textContent = premiumUntil
+      ? `Válida hasta ${formatDate(premiumUntil)}`
+      : "Cuenta VeiCloud activa";
 
     const degrees = maxDevices > 0 ? Math.min(used / maxDevices, 1) * 360 : 0;
     document.getElementById("capacityRing").style.setProperty("--usage", `${degrees}deg`);
 
     if (addAccessButton) {
       addAccessButton.disabled = available <= 0;
-      addAccessButton.title = available <= 0 ? "No quedan espacios disponibles en tu plan" : "Añadir un nuevo acceso";
+      addAccessButton.title = available <= 0
+        ? "No quedan espacios disponibles en tu plan"
+        : "Añadir un nuevo acceso";
     }
 
     renderDevices(devices);
@@ -329,6 +396,7 @@ function openAccessModal() {
 }
 
 function closeAccessModal() {
+  if (!accessModal) return;
   accessModal.classList.add("hidden");
   accessModal.setAttribute("aria-hidden", "true");
   document.body.style.overflow = "";
@@ -364,7 +432,9 @@ async function loadAmneziaLocations() {
     }
 
     amneziaServerSelect.innerHTML = items.map((server) => {
-      const label = [server.country, server.city].filter(Boolean).join(" · ") || server.server_name || `Servidor ${server.server_id}`;
+      const label = [server.country, server.city].filter(Boolean).join(" · ")
+        || server.server_name
+        || `Servidor ${server.server_id}`;
       return `<option value="${Number(server.server_id)}">${escapeHtml(label)}</option>`;
     }).join("");
 
@@ -465,7 +535,8 @@ async function createAmneziaAccess() {
       })
     });
 
-    const vpnKey = payload?.vpn?.amnezia_vpn_key || payload?.vpn_locations?.[0]?.amnezia_vpn_key;
+    const vpnKey = payload?.vpn?.amnezia_vpn_key
+      || payload?.vpn_locations?.[0]?.amnezia_vpn_key;
 
     if (!vpnKey) {
       showAccessResult(amneziaResult, "El acceso fue creado, pero no se recibió una clave vpn://.", true);
@@ -488,8 +559,12 @@ async function createAmneziaAccess() {
 
 loginTab.addEventListener("click", openLogin);
 registerTab.addEventListener("click", openRegister);
-document.querySelectorAll("[data-open-register]").forEach((button) => button.addEventListener("click", openRegister));
-document.querySelectorAll("[data-open-login]").forEach((button) => button.addEventListener("click", openLogin));
+document.querySelectorAll("[data-open-register]").forEach((button) => {
+  button.addEventListener("click", openRegister);
+});
+document.querySelectorAll("[data-open-login]").forEach((button) => {
+  button.addEventListener("click", openLogin);
+});
 
 document.querySelectorAll(".toggle-password").forEach((button) => {
   button.addEventListener("click", () => {
@@ -607,14 +682,19 @@ logoutButton.addEventListener("click", () => {
 });
 
 refreshButton.addEventListener("click", loadDashboard);
+
 document.querySelectorAll("[data-scroll-devices]").forEach((button) => {
   button.addEventListener("click", () => {
-    document.getElementById("devicesSection").scrollIntoView({ behavior: "smooth" });
+    document.getElementById("devicesSection").scrollIntoView({
+      behavior: "smooth"
+    });
   });
 });
 
 addAccessButton?.addEventListener("click", openAccessModal);
-document.querySelectorAll("[data-close-access]").forEach((element) => element.addEventListener("click", closeAccessModal));
+document.querySelectorAll("[data-close-access]").forEach((element) => {
+  element.addEventListener("click", closeAccessModal);
+});
 guestOption?.addEventListener("click", selectGuestAccess);
 amneziaOption?.addEventListener("click", selectAmneziaAccess);
 createInvitationButton?.addEventListener("click", createInvitation);
@@ -622,11 +702,26 @@ createAmneziaButton?.addEventListener("click", createAmneziaAccess);
 
 document.addEventListener("click", (event) => {
   const copyButton = event.target.closest("[data-copy-value]");
-  if (copyButton) copyText(copyButton.dataset.copyValue || "", copyButton);
+  if (copyButton) {
+    copyText(copyButton.dataset.copyValue || "", copyButton);
+    return;
+  }
+
+  const deleteButton = event.target.closest("[data-delete-device]");
+  if (deleteButton) {
+    deleteDevice(
+      Number(deleteButton.dataset.deleteDevice),
+      deleteButton.dataset.deviceName || "Dispositivo",
+      deleteButton.dataset.deleteLabel || "Eliminar acceso",
+      deleteButton
+    );
+  }
 });
 
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !accessModal?.classList.contains("hidden")) closeAccessModal();
+  if (event.key === "Escape" && !accessModal?.classList.contains("hidden")) {
+    closeAccessModal();
+  }
 });
 
 window.addEventListener("load", refreshIcons);
