@@ -10,6 +10,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="portal.css">
+  <style>
+    .brand-logo-real{width:36px;height:36px;object-fit:contain;border-radius:11px;filter:drop-shadow(0 8px 18px rgba(255,67,37,.22))}.sidebar-brand .brand-logo-real{width:38px;height:38px}.account-chip-logo{width:38px!important;height:38px!important;border-radius:11px!important;object-fit:contain!important;background:transparent!important;padding:0!important}.section-actions{display:flex;gap:8px;align-items:center}.add-access-button{background:linear-gradient(135deg,#ff684c,#ff4325)!important;color:#fff!important;border-color:transparent!important;box-shadow:0 10px 24px rgba(255,67,37,.18)}.device-badge{display:inline-flex;align-items:center;gap:5px;margin-left:7px;padding:3px 7px;border-radius:999px;font-size:8px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border:1px solid rgba(255,255,255,.08);vertical-align:middle}.device-badge.owner{color:#ff846d;background:rgba(255,67,37,.08);border-color:rgba(255,67,37,.15)}.device-badge.guest{color:#80bfff;background:rgba(77,166,255,.08);border-color:rgba(77,166,255,.16)}.device-badge.amnezia{color:#c49cff;background:rgba(154,103,255,.09);border-color:rgba(154,103,255,.18)}.access-modal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:22px}.access-modal.hidden{display:none!important}.access-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(12px)}.access-modal-card{position:relative;width:min(620px,94vw);max-height:88vh;overflow:auto;background:linear-gradient(180deg,#14171c,#0b0d10);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:22px;box-shadow:0 30px 100px rgba(0,0,0,.6)}.access-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:18px}.access-modal-head h2{font-family:Manrope,sans-serif;margin:5px 0 0;font-size:25px}.icon-button{width:38px;height:38px;border-radius:11px;border:1px solid rgba(255,255,255,.08);background:#101217;color:#9da2ac;display:grid;place-items:center;cursor:pointer}.icon-button svg{width:17px;height:17px}.access-options{display:grid;grid-template-columns:1fr 1fr;gap:12px}.access-option{border:1px solid rgba(255,255,255,.08);border-radius:17px;background:#0e1014;color:#fff;padding:18px;text-align:left;cursor:pointer;transition:.2s}.access-option:hover,.access-option.active{border-color:rgba(255,67,37,.4);background:rgba(255,67,37,.055)}.access-option>span{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:#171a20;color:#ff684c;margin-bottom:13px}.access-option>span svg{width:21px;height:21px}.access-option strong{display:block;font-size:13px;margin-bottom:6px}.access-option small{display:block;color:#777d87;font-size:10px;line-height:1.5}.access-panel{margin-top:14px;padding:18px;border:1px solid rgba(255,255,255,.08);border-radius:17px;background:#0c0e12}.access-panel h3{margin:0 0 7px;font-size:15px}.access-panel>p{margin:0 0 15px;color:#7c818b;font-size:11px;line-height:1.55}.access-panel label{display:block;margin:12px 0}.access-panel label span{display:block;color:#9da2aa;font-size:10px;font-weight:700;margin-bottom:7px}.access-panel input,.access-panel select{width:100%;height:45px;border-radius:11px;border:1px solid rgba(255,255,255,.08);background:#090b0e;color:#fff;padding:0 12px;outline:none}.access-primary{width:100%;height:45px;border:0;border-radius:12px;background:linear-gradient(135deg,#ff684c,#ff4325);color:#fff;font-weight:800;cursor:pointer;margin-top:5px}.access-result{margin-top:14px;border-radius:14px;padding:14px;background:rgba(68,212,131,.06);border:1px solid rgba(68,212,131,.16)}.access-result.error{background:rgba(255,67,37,.06);border-color:rgba(255,67,37,.16)}.access-result strong{display:block;font-size:11px;margin-bottom:8px}.access-result code{display:block;word-break:break-all;font-size:10px;color:#bfc4cc;background:#080a0c;padding:10px;border-radius:9px;max-height:120px;overflow:auto}.copy-access{margin-top:8px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,.08);background:#15181d;color:#ddd;font-size:10px;font-weight:700;padding:0 11px;cursor:pointer;display:flex;align-items:center;gap:6px}.copy-access svg{width:13px;height:13px}@media(max-width:620px){.access-options{grid-template-columns:1fr}.section-actions{gap:6px}.section-actions button span{display:none}.brand-logo-real{width:34px;height:34px}}
+  </style>
   <script src="https://unpkg.com/lucide@latest" defer></script>
   <script src="portal.js" defer></script>
 </head>
@@ -18,7 +21,7 @@
 
   <header class="portal-nav">
     <a class="portal-brand" href="index.html" aria-label="Volver a VeiCloud VPN">
-      <span class="brand-mark"><i data-lucide="shield-check"></i></span>
+      <img class="brand-logo-real" src="/docs/assets/veicloud-logo.png" alt="VeiCloud VPN">
       <strong>VeiCloud</strong><span>VPN</span>
     </a>
     <a class="back-site" href="index.html"><i data-lucide="arrow-left"></i><span>Volver al sitio</span></a>
@@ -63,7 +66,7 @@
 
     <section class="dashboard hidden" id="dashboardView">
       <aside class="dashboard-sidebar">
-        <a class="sidebar-brand" href="index.html"><span class="brand-mark"><i data-lucide="shield-check"></i></span><div><strong>VeiCloud</strong><span>VPN</span></div></a>
+        <a class="sidebar-brand" href="index.html"><img class="brand-logo-real" src="/docs/assets/veicloud-logo.png" alt="VeiCloud VPN"><div><strong>VeiCloud</strong><span>VPN</span></div></a>
         <nav>
           <button class="side-item active" type="button"><i data-lucide="layout-dashboard"></i><b>Resumen</b></button>
           <button class="side-item" type="button" data-scroll-devices><i data-lucide="monitor-smartphone"></i><b>Dispositivos</b></button>
@@ -77,7 +80,7 @@
       <div class="dashboard-content">
         <header class="dashboard-topbar">
           <div><span class="eyebrow">PANEL DE CONTROL</span><h1>Hola, <span id="welcomeName">VeiCloud</span></h1><p>Gestiona tu acceso, plan y dispositivos desde un solo lugar.</p></div>
-          <div class="account-chip"><span id="accountInitial">V</span><div><strong id="chipEmail">Cargando...</strong><small id="chipId">ID · ------</small></div><i data-lucide="chevron-down"></i></div>
+          <div class="account-chip"><img class="account-chip-logo" src="/docs/assets/veicloud-logo.png" alt="VeiCloud"><div><strong id="chipEmail">Cargando...</strong><small id="chipId">ID · ------</small></div><i data-lucide="chevron-down"></i></div>
         </header>
 
         <div class="dashboard-alert hidden" id="dashboardError"></div>
@@ -95,11 +98,56 @@
         </section>
 
         <section class="dashboard-section" id="devicesSection">
-          <div class="section-title"><div><span>DISPOSITIVOS</span><h2><i data-lucide="monitor-smartphone"></i> Accesos de tu cuenta</h2></div><button id="refreshButton" type="button"><i data-lucide="refresh-cw"></i><span>Actualizar</span></button></div>
+          <div class="section-title">
+            <div><span>DISPOSITIVOS</span><h2><i data-lucide="monitor-smartphone"></i> Accesos de tu cuenta</h2></div>
+            <div class="section-actions">
+              <button class="add-access-button" id="addAccessButton" type="button"><i data-lucide="plus"></i><span>Añadir acceso</span></button>
+              <button id="refreshButton" type="button"><i data-lucide="refresh-cw"></i><span>Actualizar</span></button>
+            </div>
+          </div>
           <div class="devices-list" id="devicesList"><div class="loading-card"><i data-lucide="loader-circle"></i>Cargando dispositivos...</div></div>
         </section>
       </div>
     </section>
   </main>
+
+  <div class="access-modal hidden" id="accessModal" aria-hidden="true">
+    <div class="access-modal-backdrop" data-close-access></div>
+    <section class="access-modal-card" role="dialog" aria-modal="true" aria-labelledby="accessModalTitle">
+      <header class="access-modal-head">
+        <div><span class="eyebrow">NUEVO ACCESO</span><h2 id="accessModalTitle">Añadir un dispositivo</h2></div>
+        <button class="icon-button" type="button" data-close-access aria-label="Cerrar"><i data-lucide="x"></i></button>
+      </header>
+
+      <div class="access-options">
+        <button class="access-option active" id="guestOption" type="button">
+          <span><i data-lucide="user-round-plus"></i></span>
+          <strong>Invitado VeiCloud VPN</strong>
+          <small>Genera una clave temporal para conectar otro teléfono o TV con VeiCloud VPN.</small>
+        </button>
+        <button class="access-option" id="amneziaOption" type="button">
+          <span><i data-lucide="key-round"></i></span>
+          <strong>Amnezia VPN</strong>
+          <small>Crea un acceso vpn:// independiente para utilizarlo directamente en AmneziaVPN.</small>
+        </button>
+      </div>
+
+      <div class="access-panel" id="guestAccessPanel">
+        <h3>Invitado VeiCloud VPN</h3>
+        <p>La clave dura 24 horas. El dispositivo ocupará un cupo únicamente cuando la invitación sea utilizada.</p>
+        <button class="access-primary" id="createInvitationButton" type="button">Generar clave de invitación</button>
+        <div class="access-result hidden" id="invitationResult"></div>
+      </div>
+
+      <div class="access-panel hidden" id="amneziaAccessPanel">
+        <h3>Acceso Amnezia VPN</h3>
+        <p>Selecciona la ubicación donde quieres crear el acceso. Este acceso ocupará un cupo del plan.</p>
+        <label><span>Nombre del acceso</span><input id="amneziaDeviceName" type="text" maxlength="120" value="AmneziaVPN" placeholder="Ej. Amnezia portátil"></label>
+        <label><span>Ubicación</span><select id="amneziaServerSelect"><option value="">Cargando ubicaciones...</option></select></label>
+        <button class="access-primary" id="createAmneziaButton" type="button">Crear acceso Amnezia VPN</button>
+        <div class="access-result hidden" id="amneziaResult"></div>
+      </div>
+    </section>
+  </div>
 </body>
 </html>
