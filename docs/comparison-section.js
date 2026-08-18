@@ -31,6 +31,44 @@
           <div class="vei-comparison-row" role="row"><span>Privacidad</span><b>La actividad no es el producto</b><em>Modelo de datos menos claro</em></div>
           <div class="vei-comparison-row" role="row"><span>Conexiones simultáneas</span><b>Según tu plan</b><em>Normalmente limitadas</em></div>
         </div>
+
+        <div class="vei-comparison-faq">
+          <div class="vei-comparison-faq-head">
+            <span>Preguntas frecuentes</span>
+            <h3>Lo importante, sin letra pequeña.</h3>
+          </div>
+
+          <div class="vei-comparison-faq-list">
+            <details>
+              <summary>¿Por qué necesito una VPN?<i></i></summary>
+              <p>Una VPN cifra el tráfico entre tu dispositivo y el servidor VPN, reduce la exposición de tu dirección IP real y añade una capa de protección cuando utilizas redes que no controlas.</p>
+            </details>
+            <details>
+              <summary>¿Qué hace diferente a VeiCloud?<i></i></summary>
+              <p>VeiCloud busca una experiencia simple: conexión rápida, tráfico ilimitado, una interfaz clara y soporte para los dispositivos que utilizas, sin llenar la aplicación de funciones innecesarias.</p>
+            </details>
+            <details>
+              <summary>¿Por qué elegir VeiCloud frente a una VPN gratuita?<i></i></summary>
+              <p>Los servicios gratuitos suelen compensar sus costes con límites, publicidad, menor soporte o modelos de datos menos transparentes. VeiCloud funciona mediante una suscripción y centra el producto en el servicio VPN.</p>
+            </details>
+            <details>
+              <summary>¿Es legal utilizar una VPN?<i></i></summary>
+              <p>La legalidad depende del país y del uso que hagas del servicio. Una VPN no convierte en legal una actividad que ya sea ilegal, por lo que debes respetar las leyes aplicables donde te encuentres.</p>
+            </details>
+            <details>
+              <summary>¿Qué dispositivos son compatibles con VeiCloud?<i></i></summary>
+              <p>Actualmente la web muestra compatibilidad con Windows, Android, Android TV, Chrome, Firefox y Edge. La disponibilidad concreta de cada cliente puede variar según la plataforma.</p>
+            </details>
+            <details>
+              <summary>¿Puedo usar mi suscripción en varios dispositivos?<i></i></summary>
+              <p>Sí. El número de dispositivos simultáneos depende de tu plan: Standard incluye 1 dispositivo, Gold 3 y Premium hasta 8.</p>
+            </details>
+            <details>
+              <summary>¿VeiCloud tiene límite mensual de datos?<i></i></summary>
+              <p>No se aplica un límite mensual de tráfico por gigabytes. La velocidad real puede depender de tu conexión, ubicación, servidor y condiciones de red.</p>
+            </details>
+          </div>
+        </div>
       </div>
     `;
 
@@ -43,7 +81,7 @@
         .vei-comparison-section{background:#0b121a;padding:96px 18px 110px;color:#fff}
         .vei-comparison-inner{width:min(1120px,100%);margin:auto}
         .vei-comparison-head{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(260px,.85fr);gap:48px;align-items:center;margin-bottom:52px}
-        .vei-comparison-copy span{display:inline-block;color:#ff8069;font:800 10px Manrope,sans-serif;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:16px}
+        .vei-comparison-copy span,.vei-comparison-faq-head span{display:inline-block;color:#ff8069;font:800 10px Manrope,sans-serif;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:16px}
         .vei-comparison-copy h2{margin:0 0 16px;font:800 clamp(38px,5vw,62px)/1 Manrope,sans-serif;letter-spacing:-3px;color:#fff}
         .vei-comparison-copy p{margin:0;max-width:700px;color:#9eafbe;font-size:15px;line-height:1.75}
         .vei-comparison-head img{justify-self:end;width:min(100%,330px);max-height:240px;object-fit:contain;filter:drop-shadow(0 24px 38px rgba(0,0,0,.3))}
@@ -57,8 +95,22 @@
         .vei-comparison-header{min-height:62px;background:#111d28}
         .vei-comparison-header strong{font:800 13px Manrope,sans-serif;color:#fff}
         .vei-comparison-header strong:first-of-type{color:#ff8069}
-        @media(max-width:800px){.vei-comparison-head{grid-template-columns:1fr;text-align:center;gap:24px}.vei-comparison-head img{justify-self:center}.vei-comparison-copy p{margin-inline:auto}.vei-comparison-table{overflow-x:auto}.vei-comparison-row{min-width:720px}}
-        @media(max-width:520px){.vei-comparison-section{padding:72px 14px 78px}.vei-comparison-copy h2{font-size:clamp(34px,10vw,46px);letter-spacing:-2px}.vei-comparison-copy p{font-size:13px}}
+        .vei-comparison-faq{margin-top:96px}
+        .vei-comparison-faq-head{text-align:center;max-width:760px;margin:0 auto 34px}
+        .vei-comparison-faq-head h3{margin:0;color:#fff;font:800 clamp(34px,4.6vw,54px)/1.02 Manrope,sans-serif;letter-spacing:-2.5px}
+        .vei-comparison-faq-list{max-width:940px;margin:auto}
+        .vei-comparison-faq-list details{border-bottom:1px solid rgba(255,255,255,.07)}
+        .vei-comparison-faq-list summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:24px 4px;color:#eef3f7;font:700 15px/1.4 Manrope,sans-serif}
+        .vei-comparison-faq-list summary::-webkit-details-marker{display:none}
+        .vei-comparison-faq-list summary i{position:relative;flex:0 0 22px;width:22px;height:22px}
+        .vei-comparison-faq-list summary i::before,.vei-comparison-faq-list summary i::after{content:"";position:absolute;left:50%;top:50%;width:10px;height:2px;background:#8fa0ae;border-radius:2px;transition:transform .2s ease}
+        .vei-comparison-faq-list summary i::before{transform:translate(-8px,-50%) rotate(45deg)}
+        .vei-comparison-faq-list summary i::after{transform:translate(-2px,-50%) rotate(-45deg)}
+        .vei-comparison-faq-list details[open] summary i::before{transform:translate(-8px,-50%) rotate(-45deg)}
+        .vei-comparison-faq-list details[open] summary i::after{transform:translate(-2px,-50%) rotate(45deg)}
+        .vei-comparison-faq-list details p{margin:0;padding:0 42px 24px 4px;color:#96a7b5;font-size:13px;line-height:1.75;max-width:860px}
+        @media(max-width:800px){.vei-comparison-head{grid-template-columns:1fr;text-align:center;gap:24px}.vei-comparison-head img{justify-self:center}.vei-comparison-copy p{margin-inline:auto}.vei-comparison-table{overflow-x:auto}.vei-comparison-row{min-width:720px}.vei-comparison-faq{margin-top:72px}}
+        @media(max-width:520px){.vei-comparison-section{padding:72px 14px 78px}.vei-comparison-copy h2{font-size:clamp(34px,10vw,46px);letter-spacing:-2px}.vei-comparison-copy p{font-size:13px}.vei-comparison-faq-head h3{font-size:clamp(30px,9vw,42px);letter-spacing:-2px}.vei-comparison-faq-list summary{font-size:14px;padding:20px 2px}.vei-comparison-faq-list details p{padding:0 34px 20px 2px;font-size:12px}}
       `;
       document.head.appendChild(style);
     }
