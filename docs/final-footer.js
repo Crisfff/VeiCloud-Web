@@ -6,10 +6,8 @@
     const footer = document.querySelector('footer');
     if (!comparison || !footer) return false;
 
-    // Remove the old homepage sections explicitly.
     document.querySelectorAll('.section.product, .section.network, .section.plans, section.download, .section.faq, .section.compliance').forEach((el) => el.remove());
 
-    // Remove any remaining legacy section that sits after the new comparison block.
     let node = comparison.nextElementSibling;
     while (node) {
       const next = node.nextElementSibling;
@@ -44,7 +42,7 @@
       <div class="vei-footer-inner">
         <div class="vei-footer-top">
           <a class="vei-footer-brand" href="#home" aria-label="VeiCloud VPN">
-            <span class="vei-footer-logo">V</span>
+            <img class="vei-footer-logo-img" src="assets/veicloud-logo.png" alt="VeiCloud VPN">
             <span><strong>VeiCloud</strong><small>VPN</small></span>
           </a>
           <p>Privacidad, velocidad y una experiencia sencilla en tus dispositivos compatibles.</p>
@@ -74,12 +72,12 @@
         </div>
 
         <div class="vei-footer-platforms" aria-label="Plataformas compatibles">
-          <div><img src="assets/platforms/windows.webp" alt="Windows"><span>Windows</span></div>
-          <div><img src="assets/platforms/android.webp.png" alt="Android"><span>Android</span></div>
-          <div><img src="assets/platforms/android-tv.webp.png" alt="Android TV"><span>Android TV</span></div>
-          <div><img src="assets/platforms/chrome.webp.png" alt="Chrome"><span>Chrome</span></div>
-          <div><img src="assets/platforms/firefox.webp.png" alt="Firefox"><span>Firefox</span></div>
-          <div><img src="assets/platforms/edge.webp.png" alt="Edge"><span>Edge</span></div>
+          <img src="assets/platforms/windows.webp" alt="Windows" title="Windows">
+          <img src="assets/platforms/android.webp.png" alt="Android" title="Android">
+          <img src="assets/platforms/android-tv.webp.png" alt="Android TV" title="Android TV">
+          <img src="assets/platforms/chrome.webp.png" alt="Chrome" title="Chrome">
+          <img src="assets/platforms/firefox.webp.png" alt="Firefox" title="Firefox">
+          <img src="assets/platforms/edge.webp.png" alt="Edge" title="Edge">
         </div>
 
         <div class="vei-footer-bottom">
@@ -97,16 +95,16 @@
         .vei-footer-inner{width:min(1120px,calc(100% - 36px));margin:auto;padding:58px 0 28px}
         .vei-footer-top{display:flex;align-items:center;justify-content:space-between;gap:30px;padding-bottom:38px;border-bottom:1px solid rgba(255,255,255,.07)}
         .vei-footer-brand{display:flex;align-items:center;gap:12px}
-        .vei-footer-logo{width:42px;height:42px;border-radius:13px;background:#ff4325;display:grid;place-items:center;font:800 22px Manrope,sans-serif;color:#fff}
+        .vei-footer-logo-img{width:48px;height:48px;object-fit:contain;display:block}
         .vei-footer-brand>span:last-child{display:flex;align-items:baseline;gap:7px}.vei-footer-brand strong{font:800 18px Manrope,sans-serif}.vei-footer-brand small{font-size:9px;letter-spacing:1.5px;color:#777f8a}
         .vei-footer-top p{max-width:520px;margin:0;color:#89919d;font-size:13px;line-height:1.65;text-align:right}
         .vei-footer-columns{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:58px;padding:42px 0}
         .vei-footer-column{display:flex;flex-direction:column;gap:12px}.vei-footer-column strong{font:800 10px Manrope,sans-serif;letter-spacing:1.5px;text-transform:uppercase;color:#ff8069;margin-bottom:5px}.vei-footer-column a{font-size:13px;color:#aab0ba;transition:.2s}.vei-footer-column a:hover{color:#fff}
-        .vei-footer-platforms{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;padding:22px 0;border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07)}
-        .vei-footer-platforms div{display:flex;align-items:center;justify-content:center;gap:9px;min-width:0}.vei-footer-platforms img{width:22px;height:22px;object-fit:contain}.vei-footer-platforms span{font:700 10px Manrope,sans-serif;color:#b8bdc5;white-space:nowrap}
+        .vei-footer-platforms{display:flex;align-items:center;justify-content:center;gap:26px;padding:24px 0;border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07);flex-wrap:wrap}
+        .vei-footer-platforms img{width:28px;height:28px;object-fit:contain;display:block}
         .vei-footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-top:24px;color:#69717c;font-size:10px}
-        @media(max-width:760px){.vei-footer-inner{width:min(100% - 28px,1120px);padding-top:44px}.vei-footer-top{align-items:flex-start;flex-direction:column}.vei-footer-top p{text-align:left}.vei-footer-columns{grid-template-columns:1fr 1fr;gap:32px}.vei-footer-platforms{grid-template-columns:repeat(3,1fr);row-gap:18px}.vei-footer-bottom{flex-direction:column;align-items:flex-start}}
-        @media(max-width:480px){.vei-footer-columns{grid-template-columns:1fr}.vei-footer-platforms{grid-template-columns:repeat(2,1fr)}.vei-footer-platforms div{justify-content:flex-start}}
+        @media(max-width:760px){.vei-footer-inner{width:min(100% - 28px,1120px);padding-top:44px}.vei-footer-top{align-items:flex-start;flex-direction:column}.vei-footer-top p{text-align:left}.vei-footer-columns{grid-template-columns:1fr 1fr;gap:32px}.vei-footer-platforms{justify-content:flex-start;gap:22px}.vei-footer-bottom{flex-direction:column;align-items:flex-start}}
+        @media(max-width:480px){.vei-footer-columns{grid-template-columns:1fr}.vei-footer-platforms img{width:26px;height:26px}}
       `;
       document.head.appendChild(style);
     }
