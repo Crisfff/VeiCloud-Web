@@ -1,10 +1,91 @@
 (() => {
   'use strict';
 
+  const setupHeaderControls = () => {
+    const navTools = document.querySelector('.nav-tools');
+    const languageSwitcher = document.querySelector('.language-switcher');
+    const account = document.querySelector('.account-nav-button');
+    if (!navTools || !languageSwitcher || !account) return;
+
+    account.textContent = 'Acceder';
+    account.classList.add('vei-account-link');
+
+    if (!languageSwitcher.querySelector('.vei-language-toggle')) {
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'vei-language-toggle';
+      toggle.setAttribute('aria-label', 'Cambiar idioma');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.innerHTML = `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M3 12h18M12 3c2.6 2.4 4 5.5 4 9s-1.4 6.6-4 9c-2.6-2.4-4-5.5-4-9s1.4-6.6 4-9Z"></path>
+        </svg>`;
+      languageSwitcher.prepend(toggle);
+
+      const labels = { es: 'Español', ru: 'Русский', en: 'English' };
+      languageSwitcher.querySelectorAll('[data-lang]').forEach((button) => {
+        button.textContent = labels[button.dataset.lang] || button.dataset.lang.toUpperCase();
+        button.classList.add('vei-language-option');
+        button.addEventListener('click', () => {
+          languageSwitcher.classList.remove('is-open');
+          toggle.setAttribute('aria-expanded', 'false');
+        });
+      });
+
+      toggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const open = languageSwitcher.classList.toggle('is-open');
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!languageSwitcher.contains(event.target)) {
+          languageSwitcher.classList.remove('is-open');
+          toggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          languageSwitcher.classList.remove('is-open');
+          toggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
+    if (!document.querySelector('#vei-header-controls-styles')) {
+      const style = document.createElement('style');
+      style.id = 'vei-header-controls-styles';
+      style.textContent = `
+        .nav-tools{position:relative;gap:18px!important;align-items:center!important}
+        .account-nav-button.vei-account-link{background:transparent!important;border:0!important;box-shadow:none!important;padding:8px 0!important;border-radius:0!important;color:#fff!important;font:700 13px Manrope,sans-serif!important;white-space:nowrap}
+        .account-nav-button.vei-account-link:hover{color:#ff8069!important;transform:none!important}
+        .language-switcher{position:relative!important;display:flex!important;align-items:center!important;background:transparent!important;border:0!important;padding:0!important;box-shadow:none!important;overflow:visible!important}
+        .vei-language-toggle{width:38px!important;height:38px!important;padding:0!important;border:0!important;border-radius:50%!important;background:transparent!important;color:#fff!important;display:grid!important;place-items:center!important;cursor:pointer!important;transition:background .2s ease,color .2s ease!important}
+        .vei-language-toggle:hover,.language-switcher.is-open .vei-language-toggle{background:rgba(255,255,255,.06)!important;color:#ff8069!important}
+        .vei-language-toggle svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+        .vei-language-option{position:absolute!important;right:0!important;width:210px!important;height:auto!important;min-height:46px!important;padding:12px 18px!important;margin:0!important;border:0!important;border-radius:10px!important;background:transparent!important;color:#dce5ed!important;text-align:left!important;justify-content:flex-start!important;font:600 14px Manrope,sans-serif!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;transform:translateY(-6px)!important;transition:opacity .16s ease,transform .16s ease,background .16s ease,color .16s ease!important;z-index:102!important}
+        .vei-language-option[data-lang="es"]{top:54px!important}
+        .vei-language-option[data-lang="ru"]{top:100px!important}
+        .vei-language-option[data-lang="en"]{top:146px!important}
+        .language-switcher::after{content:"";position:absolute;right:-10px;top:44px;width:230px;height:166px;border-radius:20px;background:#0b141d;border:1px solid rgba(255,255,255,.07);box-shadow:0 24px 60px rgba(0,0,0,.48);opacity:0;visibility:hidden;transform:translateY(-8px) scale(.98);transform-origin:top right;transition:opacity .16s ease,transform .16s ease,visibility .16s;z-index:100}
+        .language-switcher.is-open::after{opacity:1;visibility:visible;transform:translateY(0) scale(1)}
+        .language-switcher.is-open .vei-language-option{opacity:1!important;visibility:visible!important;pointer-events:auto!important;transform:translateY(0)!important}
+        .vei-language-option:hover{background:#111f2b!important;color:#fff!important}
+        .vei-language-option.active{color:#ff8069!important;background:rgba(255,67,37,.07)!important}
+        @media(max-width:680px){.nav-tools{gap:12px!important}.language-switcher::after{right:-4px;width:205px}.vei-language-option{width:185px!important}.account-nav-button.vei-account-link{font-size:12px!important}}
+      `;
+      document.head.appendChild(style);
+    }
+  };
+
   const buildFinalFooter = () => {
     const comparison = document.querySelector('.vei-comparison-section');
     const footer = document.querySelector('footer');
     if (!comparison || !footer) return false;
+
+    setupHeaderControls();
 
     document.querySelectorAll('.section.product, .section.network, .section.plans, section.download, .section.faq, .section.compliance').forEach((el) => el.remove());
 
@@ -42,7 +123,7 @@
       <div class="vei-footer-inner">
         <div class="vei-footer-top">
           <a class="vei-footer-brand" href="#home" aria-label="VeiCloud VPN">
-            <img class="vei-footer-logo-img" src="assets/veicloud-logo.png" alt="VeiCloud VPN">
+            <img class="vei-footer-logo-img" src="assets/veicloud-logo.png" alt="VeiCloud">
             <span><strong>VeiCloud</strong><small>VPN</small></span>
           </a>
           <p>Privacidad, velocidad y una experiencia sencilla en tus dispositivos compatibles.</p>
@@ -72,12 +153,12 @@
         </div>
 
         <div class="vei-footer-platforms" aria-label="Plataformas compatibles">
-          <img src="assets/platforms/windows.webp" alt="Windows" title="Windows">
-          <img src="assets/platforms/android.webp.png" alt="Android" title="Android">
-          <img src="assets/platforms/android-tv.webp.png" alt="Android TV" title="Android TV">
-          <img src="assets/platforms/chrome.webp.png" alt="Chrome" title="Chrome">
-          <img src="assets/platforms/firefox.webp.png" alt="Firefox" title="Firefox">
-          <img src="assets/platforms/edge.webp.png" alt="Edge" title="Edge">
+          <div title="Windows"><img src="assets/platforms/windows.webp" alt="Windows"></div>
+          <div title="Android"><img src="assets/platforms/android.webp.png" alt="Android"></div>
+          <div title="Android TV"><img src="assets/platforms/android-tv.webp.png" alt="Android TV"></div>
+          <div title="Chrome"><img src="assets/platforms/chrome.webp.png" alt="Chrome"></div>
+          <div title="Firefox"><img src="assets/platforms/firefox.webp.png" alt="Firefox"></div>
+          <div title="Edge"><img src="assets/platforms/edge.webp.png" alt="Edge"></div>
         </div>
 
         <div class="vei-footer-bottom">
@@ -94,17 +175,16 @@
         .vei-final-footer{background:#080b10!important;border-top:1px solid rgba(255,255,255,.06)!important;padding:0!important;color:#fff}
         .vei-footer-inner{width:min(1120px,calc(100% - 36px));margin:auto;padding:58px 0 28px}
         .vei-footer-top{display:flex;align-items:center;justify-content:space-between;gap:30px;padding-bottom:38px;border-bottom:1px solid rgba(255,255,255,.07)}
-        .vei-footer-brand{display:flex;align-items:center;gap:12px}
-        .vei-footer-logo-img{width:48px;height:48px;object-fit:contain;display:block}
+        .vei-footer-brand{display:flex;align-items:center;gap:12px}.vei-footer-logo-img{width:44px;height:44px;object-fit:contain;display:block}
         .vei-footer-brand>span:last-child{display:flex;align-items:baseline;gap:7px}.vei-footer-brand strong{font:800 18px Manrope,sans-serif}.vei-footer-brand small{font-size:9px;letter-spacing:1.5px;color:#777f8a}
         .vei-footer-top p{max-width:520px;margin:0;color:#89919d;font-size:13px;line-height:1.65;text-align:right}
         .vei-footer-columns{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:58px;padding:42px 0}
         .vei-footer-column{display:flex;flex-direction:column;gap:12px}.vei-footer-column strong{font:800 10px Manrope,sans-serif;letter-spacing:1.5px;text-transform:uppercase;color:#ff8069;margin-bottom:5px}.vei-footer-column a{font-size:13px;color:#aab0ba;transition:.2s}.vei-footer-column a:hover{color:#fff}
-        .vei-footer-platforms{display:flex;align-items:center;justify-content:center;gap:26px;padding:24px 0;border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07);flex-wrap:wrap}
-        .vei-footer-platforms img{width:28px;height:28px;object-fit:contain;display:block}
+        .vei-footer-platforms{display:grid;grid-template-columns:repeat(6,42px);justify-content:center;gap:18px;padding:22px 0;border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07)}
+        .vei-footer-platforms div{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:rgba(255,255,255,.025)}.vei-footer-platforms img{width:22px;height:22px;object-fit:contain}
         .vei-footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-top:24px;color:#69717c;font-size:10px}
-        @media(max-width:760px){.vei-footer-inner{width:min(100% - 28px,1120px);padding-top:44px}.vei-footer-top{align-items:flex-start;flex-direction:column}.vei-footer-top p{text-align:left}.vei-footer-columns{grid-template-columns:1fr 1fr;gap:32px}.vei-footer-platforms{justify-content:flex-start;gap:22px}.vei-footer-bottom{flex-direction:column;align-items:flex-start}}
-        @media(max-width:480px){.vei-footer-columns{grid-template-columns:1fr}.vei-footer-platforms img{width:26px;height:26px}}
+        @media(max-width:760px){.vei-footer-inner{width:min(100% - 28px,1120px);padding-top:44px}.vei-footer-top{align-items:flex-start;flex-direction:column}.vei-footer-top p{text-align:left}.vei-footer-columns{grid-template-columns:1fr 1fr;gap:32px}.vei-footer-platforms{grid-template-columns:repeat(3,42px);row-gap:18px}.vei-footer-bottom{flex-direction:column;align-items:flex-start}}
+        @media(max-width:480px){.vei-footer-columns{grid-template-columns:1fr}.vei-footer-platforms{grid-template-columns:repeat(3,42px)}}
       `;
       document.head.appendChild(style);
     }
@@ -113,8 +193,10 @@
   };
 
   const start = () => {
+    setupHeaderControls();
     if (buildFinalFooter()) return;
     const observer = new MutationObserver(() => {
+      setupHeaderControls();
       if (buildFinalFooter()) observer.disconnect();
     });
     observer.observe(document.body, { childList: true, subtree: true });
