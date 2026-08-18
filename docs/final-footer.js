@@ -1,6 +1,23 @@
 (() => {
   'use strict';
 
+  const setupFavicon = () => {
+    const ensureIcon = (rel, sizes = '') => {
+      let link = document.head.querySelector(`link[rel="${rel}"]`);
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = rel;
+        document.head.appendChild(link);
+      }
+      link.href = 'assets/veicloud-logo.png?v=20260818';
+      link.type = 'image/png';
+      if (sizes) link.sizes = sizes;
+    };
+    ensureIcon('icon', '32x32');
+    ensureIcon('shortcut icon');
+    ensureIcon('apple-touch-icon', '180x180');
+  };
+
   const setupHeaderControls = () => {
     const navTools = document.querySelector('.nav-tools');
     const languageSwitcher = document.querySelector('.language-switcher');
@@ -89,6 +106,6 @@
     return true;
   };
 
-  const start = () => { setupHeaderControls(); if (buildFinalFooter()) return; const observer = new MutationObserver(() => { setupHeaderControls(); if (buildFinalFooter()) observer.disconnect(); }); observer.observe(document.body, { childList: true, subtree: true }); setTimeout(() => observer.disconnect(), 7000); };
+  const start = () => { setupFavicon(); setupHeaderControls(); if (buildFinalFooter()) return; const observer = new MutationObserver(() => { setupHeaderControls(); if (buildFinalFooter()) observer.disconnect(); }); observer.observe(document.body, { childList: true, subtree: true }); setTimeout(() => observer.disconnect(), 7000); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true }); else start();
 })();
