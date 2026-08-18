@@ -3,11 +3,13 @@
 
   const buildFinalFooter = () => {
     const comparison = document.querySelector('.vei-comparison-section');
-    const main = document.querySelector('main');
     const footer = document.querySelector('footer');
-    if (!comparison || !main || !footer) return false;
+    if (!comparison || !footer) return false;
 
-    // Everything after the new comparison + FAQ block is legacy content and is removed.
+    // Remove the old homepage sections explicitly.
+    document.querySelectorAll('.section.product, .section.network, .section.plans, section.download, .section.faq, .section.compliance').forEach((el) => el.remove());
+
+    // Remove any remaining legacy section that sits after the new comparison block.
     let node = comparison.nextElementSibling;
     while (node) {
       const next = node.nextElementSibling;
@@ -112,12 +114,18 @@
     return true;
   };
 
-  document.addEventListener('DOMContentLoaded', () => {
+  const start = () => {
     if (buildFinalFooter()) return;
     const observer = new MutationObserver(() => {
       if (buildFinalFooter()) observer.disconnect();
     });
     observer.observe(document.body, { childList: true, subtree: true });
     setTimeout(() => observer.disconnect(), 7000);
-  });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start, { once: true });
+  } else {
+    start();
+  }
 })();
