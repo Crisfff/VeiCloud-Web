@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const APK_URL = 'https://github.com/Crisfff/VeiCloud-Web/releases/latest/download/VeiCloudVPN.apk';
+  const APK_URL = '/download/VeiCloudVPN.apk';
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
   const injectPerformanceOverrides = () => {
@@ -43,16 +43,10 @@
     document.querySelectorAll(downloadSelectors.join(',')).forEach(link => {
       if (link.tagName !== 'A') return;
       link.href = APK_URL;
-      link.setAttribute('rel', 'noopener');
       link.setAttribute('download', 'VeiCloudVPN.apk');
+      link.removeAttribute('target');
+      link.removeAttribute('rel');
     });
-
-    document.addEventListener('click', event => {
-      const link = event.target.closest(downloadSelectors.join(','));
-      if (!link) return;
-      event.preventDefault();
-      window.location.assign(APK_URL);
-    }, true);
   };
 
   const forceMobileAccountAccess = () => {
