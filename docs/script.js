@@ -31,18 +31,16 @@
       .vei-hero-copy>p{max-width:610px;color:#9b9fa9;font-size:16px;line-height:1.75;margin:0}
       .vei-hero-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:30px}
       .vei-hero-actions .button{min-height:50px;padding-inline:22px}
-      .vei-inline-note{display:flex;align-items:center;gap:8px;color:#747984;font-size:11px;margin-top:18px}
-      .vei-inline-note svg{width:16px;height:16px;color:#ff6950}
       .vei-hero-art{position:relative;display:flex;justify-content:center;align-items:center;min-height:440px}
       .vei-hero-art::before{content:"";position:absolute;width:78%;height:78%;border-radius:50%;background:radial-gradient(circle,rgba(255,67,37,.16),transparent 68%);filter:blur(14px)}
       .vei-hero-art img{position:relative;z-index:1;width:min(100%,520px);max-height:480px;object-fit:contain;filter:drop-shadow(0 35px 70px rgba(0,0,0,.48))}
       .vei-feature-row{position:relative;z-index:2;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:62px}
-      .vei-mini-card{min-height:150px;padding:22px;border:1px solid rgba(255,255,255,.08);border-radius:22px;background:#0b0d11;box-shadow:0 18px 55px rgba(0,0,0,.2)}
+      .vei-mini-card{min-height:150px;padding:22px;border:0;border-radius:22px;background:#17191e;box-shadow:none}
       .vei-mini-icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(255,67,37,.1);color:#ff654d;margin-bottom:18px}
       .vei-mini-icon svg{width:19px;height:19px}
       .vei-mini-card strong{display:block;font:700 15px Manrope,sans-serif;margin-bottom:8px}
-      .vei-mini-card p{margin:0;color:#777d88;font-size:12px;line-height:1.6}
-      .nav{background:rgba(8,9,12,.9)!important;border-color:rgba(255,255,255,.08)!important;box-shadow:0 18px 55px rgba(0,0,0,.28)!important}
+      .vei-mini-card p{margin:0;color:#8d929c;font-size:12px;line-height:1.6}
+      .nav{background:#17191e!important;border:0!important;box-shadow:none!important}
       .nav nav a:hover{color:#fff}
       .nav-download{background:var(--red)!important;color:#fff!important}
 
@@ -51,7 +49,6 @@
         .vei-hero-copy{text-align:center;margin:auto}
         .vei-badge{margin-inline:auto}
         .vei-hero-actions{justify-content:center}
-        .vei-inline-note{justify-content:center}
         .vei-hero-art{min-height:330px}
         .vei-hero-art img{max-height:370px}
         .vei-feature-row{margin-top:36px}
@@ -108,7 +105,6 @@
             <a class="button primary" href="${APK_URL}" download="VeiCloudVPN.apk"><i data-lucide="download" style="width:17px;height:17px;margin-right:9px"></i>Descargar para Android</a>
             <a class="button ghost" href="#product">Explorar VeiCloud</a>
           </div>
-          <div class="vei-inline-note"><i data-lucide="lock-keyhole"></i> AmneziaWG · Acceso protegido · Sin publicidad</div>
         </div>
         <div class="vei-hero-art">
           <img src="assets/hero-veicloud.webp" alt="VeiCloud VPN" loading="eager" decoding="async">
