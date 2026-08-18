@@ -40,7 +40,17 @@
     return true;
   };
 
+  const loadPerformanceCards = () => {
+    if (document.querySelector('script[data-vei-performance]')) return;
+    const script = document.createElement('script');
+    script.src = 'performance-cards.js?v=20260818-1';
+    script.defer = true;
+    script.dataset.veiPerformance = 'true';
+    document.head.appendChild(script);
+  };
+
   document.addEventListener('DOMContentLoaded', () => {
+    loadPerformanceCards();
     if (applyPlatformIcons()) return;
 
     const observer = new MutationObserver(() => {
