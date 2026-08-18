@@ -1,5 +1,6 @@
 const API_BASE = "https://api.veicloud.online:8443";
 const TOKEN_KEY = "veicloud_web_token";
+const DEVICE_ID_KEY = "veicloud_web_device_id";
 
 const authView = document.getElementById("authView");
 const dashboardView = document.getElementById("dashboardView");
@@ -44,6 +45,45 @@ function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+function getOrCreateDeviceId() {
+  const existing = localStorage.getItem(DEVICE_ID_KEY);
+  if (existing) return existing;
+
+  let randomPart = "";
+
+  if (window.crypto?.randomUUID) {
+    randomPart = window.crypto.randomUUID();
+  } else if (window.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    randomPart = Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+  } else {
+    randomPart = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  const deviceId = `web:${randomPart}`.slice(0, 120);
+  localStorage.setItem(DEVICE_ID_KEY, deviceId);
+  return deviceId;
+}
+
+function getWebDeviceName() {
+  const platform = String(
+    navigator.userAgentData?.platform
+      || navigator.platform
+      || "Navegador"
+  ).trim();
+
+  return `VeiCloud Web · ${platform || "Navegador"}`.slice(0, 120);
+}
+
+function getAuthDevicePayload() {
+  return {
+    device_id: getOrCreateDeviceId(),
+    device_name: getWebDeviceName(),
+    device_type: "web"
+  };
+}
+
 function showError(element, message) {
   if (!element) return;
   element.textContent = message || "";
@@ -66,17 +106,40 @@ async function readJson(response) {
 
 function authMessage(status, payload, mode) {
   const detail = payload?.detail;
-  if (status === 409) return "Ya existe una cuenta con este correo electrónico.";
+  const detailCode = typeof detail === "object" && detail ? detail.code : null;
+  const detailMessage = typeof detail === "object" && detail ? detail.message : null;
+
+  if (detailCode === "DEVICE_LIMIT_REACHED") {
+    return detailMessage || "Has alcanzado el límite de dispositivos de tu plan.";
+  }
+
+  if (detailCode === "DEVICE_ALREADY_REGISTERED") {
+    return detailMessage || "Este navegador ya está asociado a otra sesión.";
+  }
+
+  if (detailCode === "DEVICE_ID_REQUIRED") {
+    return "No se pudo identificar este navegador. Recarga la página e inténtalo de nuevo.";
+  }
+
+  if (status === 409) {
+    return detailMessage || "Ya existe una cuenta con este correo electrónico.";
+  }
+
   if (status === 401 || status === 403) return "Correo o contraseña incorrectos.";
+
   if (status === 422 || status === 400) {
     if (Array.isArray(detail)) return "Revisa el correo y la contraseña e inténtalo de nuevo.";
-    return typeof detail === "string" ? detail : "Los datos introducidos no son válidos.";
+    if (typeof detail === "string") return detail;
+    if (detailMessage) return detailMessage;
+    return "Los datos introducidos no son válidos.";
   }
+
   if (status === 429) return "Demasiados intentos. Espera un momento e inténtalo de nuevo.";
   if (status >= 500) return "VeiCloud no está disponible en este momento.";
+
   return typeof detail === "string"
     ? detail
-    : `No se pudo ${mode === "register" ? "crear la cuenta" : "iniciar sesión"}.`;
+    : detailMessage || `No se pudo ${mode === "register" ? "crear la cuenta" : "iniciar sesión"}.`;
 }
 
 function apiErrorMessage(error, fallback) {
@@ -593,7 +656,11 @@ loginForm.addEventListener("submit", async (event) => {
         "Content-Type": "application/json",
         Accept: "application/json"
       },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({
+        email,
+        password,
+        ...getAuthDevicePayload()
+      })
     });
 
     const payload = await readJson(response);
@@ -647,7 +714,11 @@ registerForm.addEventListener("submit", async (event) => {
         "Content-Type": "application/json",
         Accept: "application/json"
       },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({
+        email,
+        password,
+        ...getAuthDevicePayload()
+      })
     });
 
     const payload = await readJson(response);
