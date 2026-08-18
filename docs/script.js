@@ -72,6 +72,19 @@
       .vei-privacy-card p{margin:0;color:#a8b6c2;font-size:14px;line-height:1.72;max-width:500px}
       .vei-privacy-art{margin-top:auto;min-height:260px;display:flex;align-items:flex-end;justify-content:center;padding-top:20px}
       .vei-privacy-art img{width:min(100%,430px);max-height:300px;object-fit:contain;display:block;filter:drop-shadow(0 24px 42px rgba(0,0,0,.32))}
+
+      .vei-protocol{max-width:1120px;margin:96px auto 0;display:grid;grid-template-columns:minmax(0,.9fr) minmax(420px,1.1fr);gap:54px;align-items:center;position:relative;z-index:1}
+      .vei-protocol-copy small{display:inline-flex;align-items:center;gap:8px;color:#ff8069;font-size:10px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase}
+      .vei-protocol-copy small svg{width:15px;height:15px}
+      .vei-protocol-copy h3{font:800 clamp(36px,4.4vw,58px)/1.02 Manrope,sans-serif;letter-spacing:-2.7px;color:#fff;margin:16px 0 18px}
+      .vei-protocol-copy p{margin:0;max-width:520px;color:#9eafbe;font-size:15px;line-height:1.75}
+      .vei-wireguard-card{background:#111a24;border-radius:30px;padding:34px;min-height:250px;display:flex;align-items:center;gap:28px}
+      .vei-wg-logo{flex:0 0 94px;width:94px;height:94px;border-radius:50%;display:grid;place-items:center;background:#9f2d26;color:#fff;box-shadow:inset 0 0 0 8px rgba(255,255,255,.04)}
+      .vei-wg-logo span{font:800 42px/1 Manrope,sans-serif;letter-spacing:-4px;transform:translateX(-2px)}
+      .vei-wg-body strong{display:block;font:800 28px/1.05 Manrope,sans-serif;color:#fff;margin-bottom:12px}
+      .vei-wg-body p{margin:0;color:#a8b6c2;font-size:14px;line-height:1.65}
+      .vei-wg-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+      .vei-wg-tags span{padding:7px 10px;border-radius:999px;background:#182838;color:#c9d6e1;font-size:10px;font-weight:700;letter-spacing:.4px}
       .marquee{display:none!important}
 
       @media (max-width:900px){
@@ -84,6 +97,7 @@
         .vei-feature-row{margin-top:36px}
         .vei-explainer{padding:64px 30px 70px}
         .vei-privacy{margin-top:70px}
+        .vei-protocol{grid-template-columns:1fr;gap:28px;margin-top:72px}
       }
       @media (max-width:700px){
         .hero.vei-hero{padding:112px 0 48px}
@@ -105,6 +119,13 @@
         .vei-privacy-card p{font-size:13px}
         .vei-privacy-art{min-height:220px}
         .vei-privacy-art img{max-height:250px}
+        .vei-protocol{margin-top:60px}
+        .vei-protocol-copy h3{font-size:clamp(32px,9vw,44px);letter-spacing:-2px}
+        .vei-protocol-copy p{font-size:13px}
+        .vei-wireguard-card{padding:24px;border-radius:24px;min-height:0;align-items:flex-start}
+        .vei-wg-logo{width:70px;height:70px;flex-basis:70px}
+        .vei-wg-logo span{font-size:32px}
+        .vei-wg-body strong{font-size:24px}
       }
       @media (max-width:760px){
         .glass{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
@@ -199,6 +220,21 @@
               <div class="vei-privacy-art"><img src="assets/privacy-data.webp" alt="Privacidad de datos VeiCloud" loading="lazy" decoding="async"></div>
             </article>
           </div>
+        </div>
+        <div class="vei-protocol">
+          <div class="vei-protocol-copy">
+            <small><i data-lucide="cpu"></i> Tecnología de conexión</small>
+            <h3>Una base moderna para tu túnel VPN.</h3>
+            <p>VeiCloud utiliza WireGuard como base de conexión: una arquitectura compacta pensada para ofrecer una experiencia rápida, estable y sencilla sin añadir protocolos que no necesitas.</p>
+          </div>
+          <article class="vei-wireguard-card">
+            <div class="vei-wg-logo" aria-hidden="true"><span>W</span></div>
+            <div class="vei-wg-body">
+              <strong>WireGuard</strong>
+              <p>Un protocolo moderno y ligero que prioriza simplicidad, rendimiento y criptografía actual.</p>
+              <div class="vei-wg-tags"><span>Rápido</span><span>Ligero</span><span>Seguro</span></div>
+            </div>
+          </article>
         </div>
       </div>
     `;
