@@ -1,6 +1,15 @@
 (() => {
   'use strict';
 
+  const loadFinalFooter = () => {
+    if (document.querySelector('script[data-vei-final-footer]')) return;
+    const script = document.createElement('script');
+    script.src = 'final-footer.js?v=20260818-1';
+    script.defer = true;
+    script.dataset.veiFinalFooter = '1';
+    document.head.appendChild(script);
+  };
+
   const mountComparison = () => {
     const performance = document.querySelector('.vei-performance-section');
     if (!performance || document.querySelector('.vei-comparison-section')) return false;
@@ -115,6 +124,7 @@
       document.head.appendChild(style);
     }
 
+    loadFinalFooter();
     return true;
   };
 
