@@ -4,7 +4,7 @@
   const loadFinalFooter = () => {
     if (document.querySelector('script[data-vei-final-footer]')) return;
     const script = document.createElement('script');
-    script.src = 'final-footer.js?v=20260818-1';
+    script.src = 'final-footer.js?v=20260818-2';
     script.defer = true;
     script.dataset.veiFinalFooter = '1';
     document.head.appendChild(script);
