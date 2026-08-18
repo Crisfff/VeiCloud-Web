@@ -9,21 +9,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="phone.css">
-  <link rel="stylesheet" href="compliance.css">
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
-  <script src="script.js" defer></script>
-  <script src="i18n.js" defer></script>
+  <link rel="stylesheet" href="styles.css?v=20260818-5">
+  <link rel="stylesheet" href="phone.css?v=20260818-5">
+  <link rel="stylesheet" href="compliance.css?v=20260818-5">
+  <script src="script.js?v=20260818-5" defer></script>
+  <script src="i18n.js?v=20260818-5" defer></script>
 </head>
 <body>
-  <canvas id="webgl"></canvas>
-  <div class="noise"></div>
-  <div class="cursor-aura"></div>
-  <div class="intro"><div class="intro-symbol">V</div><div class="intro-bar"></div><span>VEICLOUD PRIVATE NETWORK</span></div>
-
   <header class="nav glass">
     <a class="brand" href="#home"><i>V</i><strong>VeiCloud</strong><span>VPN</span></a>
     <nav>
@@ -38,8 +30,8 @@
         <button type="button" data-lang="ru">RU</button>
         <button type="button" data-lang="en">EN</button>
       </div>
-      <a class="nav-button magnetic" href="portal.html">Mi cuenta</a>
-      <a class="nav-button magnetic" href="#download" data-i18n="nav.download">Descargar</a>
+      <a class="nav-button magnetic account-nav-button" href="portal.html">Mi cuenta</a>
+      <a class="nav-button magnetic nav-download" href="https://github.com/Crisfff/VeiCloud-Web/releases/latest/download/VeiCloudVPN.apk" rel="noopener" data-i18n="nav.download">Descargar</a>
     </div>
   </header>
 
@@ -51,7 +43,7 @@
         <h1 data-i18n-html="hero.title">Internet<br><em>bajo tu control.</em></h1>
         <p data-i18n="hero.text">VeiCloud VPN protege tu conexión, optimiza tu ruta y se mantiene fuera de tu camino.</p>
         <div class="hero-actions">
-          <a class="button primary magnetic" href="#download" data-i18n="hero.download">Descargar para Android</a>
+          <a class="button primary magnetic" href="https://github.com/Crisfff/VeiCloud-Web/releases/latest/download/VeiCloudVPN.apk" rel="noopener" data-i18n="hero.download">Descargar para Android</a>
           <a class="button ghost" href="#product" data-i18n="hero.explore">Explorar producto</a>
         </div>
         <div class="hero-proof"><span data-i18n="hero.nologs">Sin registros</span><span>AmneziaWG</span><span data-i18n="hero.devices">Hasta 8 dispositivos</span></div>
@@ -101,13 +93,13 @@
       <div class="pricing-word">PRICING</div><div class="section-kicker" data-i18n="plans.kicker">PLANES</div>
       <div class="section-heading centered"><h2 data-i18n-html="plans.title">Elige tu nivel.<br><em>La red es la misma.</em></h2><p data-i18n="plans.text">Tres planes mensuales según la cantidad de dispositivos que necesites.</p></div>
       <div class="pricing-grid">
-        <article class="price-card glass reveal"><span>STANDART</span><h3>199.99 ₽ <small data-i18n="plans.month">/ mes</small></h3><p data-i18n="plans.standartText">Para un solo dispositivo.</p><ul><li data-i18n="plans.standart1">1 dispositivo</li><li data-i18n="plans.sharedLocations">Las 4 ubicaciones actuales</li><li data-i18n="plans.monthlyAccess">Acceso mensual</li></ul><a class="button ghost" href="#download" data-i18n="plans.chooseStandart">Elegir Standart</a></article>
-        <article class="price-card featured glass reveal"><div class="shine"></div><span>GOLD</span><h3>449.99 ₽ <small data-i18n="plans.month">/ mes</small></h3><p data-i18n="plans.goldText">Más dispositivos, la misma experiencia.</p><ul><li data-i18n="plans.gold1">3 dispositivos</li><li data-i18n="plans.sharedLocations">Las 4 ubicaciones actuales</li><li data-i18n="plans.monthlyAccess">Acceso mensual</li></ul><a class="button primary magnetic" href="#download" data-i18n="plans.chooseGold">Elegir Gold</a></article>
-        <article class="price-card glass reveal"><span>PREMIUM</span><h3>879.99 ₽ <small data-i18n="plans.month">/ mes</small></h3><p data-i18n="plans.premiumText">Máxima capacidad para todos tus dispositivos.</p><ul><li data-i18n="plans.premium1">8 dispositivos</li><li data-i18n="plans.sharedLocations">Las 4 ubicaciones actuales</li><li data-i18n="plans.monthlyAccess">Acceso mensual</li></ul><a class="button ghost" href="#download" data-i18n="plans.choosePremium">Elegir Premium</a></article>
+        <article class="price-card glass reveal"><span>STANDART</span><h3>199.99 ₽ <small data-i18n="plans.month">/ mes</small></h3><p data-i18n="plans.standartText">Para un solo dispositivo.</p><ul><li data-i18n="plans.standart1">1 dispositivo</li><li data-i18n="plans.sharedLocations">Las 4 ubicaciones actuales</li><li data-i18n="plans.monthlyAccess">Acceso mensual</li></ul><a class="button ghost" href="https://github.com/Crisfff/VeiCloud-Web/releases/latest/download/VeiCloudVPN.apk" rel="noopener" data-i18n="plans.chooseStandart">Elegir Standart</a></article>
+        <article class="price-card featured glass reveal"><div class="shine"></div><span>GOLD</span><h3>449.99 ₽ <small data-i18n="plans.month">/ mes</small></h3><p data-i18n="plans.goldText">Más dispositivos, la misma experiencia.</p><ul><li data-i18n="plans.gold1">3 dispositivos</li><li data-i18n="plans.sharedLocations">Las 4 ubicaciones actuales</li><li data-i18n="plans.monthlyAccess">Acceso mensual</li></ul><a class="button primary magnetic" href="https://github.com/Crisfff/VeiCloud-Web/releases/latest/download/VeiCloudVPN.apk" rel="noopener" data-i18n="plans.chooseGold">Elegir Gold</a></article>
+        <article class="price-card glass reveal"><span>PREMIUM</span><h3>879.99 ₽ <small data-i18n="plans.month">/ mes</small></h3><p data-i18n="plans.premiumText">Máxima capacidad para todos tus dispositivos.</p><ul><li data-i18n="plans.premium1">8 dispositivos</li><li data-i18n="plans.sharedLocations">Las 4 ubicaciones actuales</li><li data-i18n="plans.monthlyAccess">Acceso mensual</li></ul><a class="button ghost" href="https://github.com/Crisfff/VeiCloud-Web/releases/latest/download/VeiCloudVPN.apk" rel="noopener" data-i18n="plans.choosePremium">Elegir Premium</a></article>
       </div>
     </section>
 
-    <section class="download" id="download"><div class="download-orb"></div><div class="download-inner reveal"><div><div class="section-kicker">ANDROID</div><h2 data-i18n-html="download.title">Conecta.<br><em>Y sigue.</em></h2><p data-i18n="download.text">VeiCloud VPN protege tu conexión sin convertir la seguridad en una tarea.</p><a class="button primary magnetic" href="#" data-i18n="download.button">Descargar VeiCloud VPN</a></div><div class="download-mark"><div>V</div><i></i><i></i><i></i></div></div></section>
+    <section class="download" id="download"><div class="download-orb"></div><div class="download-inner reveal"><div><div class="section-kicker">ANDROID</div><h2 data-i18n-html="download.title">Conecta.<br><em>Y sigue.</em></h2><p data-i18n="download.text">VeiCloud VPN protege tu conexión sin convertir la seguridad en una tarea.</p><a class="button primary magnetic" href="https://github.com/Crisfff/VeiCloud-Web/releases/latest/download/VeiCloudVPN.apk" rel="noopener" data-i18n="download.button">Descargar VeiCloud VPN</a></div><div class="download-mark"><div>V</div><i></i><i></i><i></i></div></div></section>
 
     <section class="section faq" id="faq"><div class="section-kicker">FAQ</div><div class="section-heading"><h2 data-i18n-html="faq.title">Preguntas claras.<br><em>Respuestas también.</em></h2></div><div class="faq-list"><details><summary><span data-i18n="faq.q1">¿VeiCloud guarda mi actividad?</span><span>+</span></summary><p data-i18n="faq.a1">No. La actividad de navegación no forma parte del producto.</p></details><details><summary><span data-i18n="faq.q2">¿Cuántos dispositivos puedo usar?</span><span>+</span></summary><p data-i18n="faq.a2">Standart incluye 1 dispositivo, Gold 3 dispositivos y Premium 8 dispositivos.</p></details><details><summary><span data-i18n="faq.q3">¿Sirve para streaming y juegos?</span><span>+</span></summary><p data-i18n="faq.a3">La red está diseñada para priorizar estabilidad y baja latencia.</p></details></div></section>
 
