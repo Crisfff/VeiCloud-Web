@@ -46,20 +46,20 @@
 
       /* VPN explainer */
       .vei-explainer-wrap{width:100%;max-width:none;margin:0;padding:0}
-      .vei-explainer{background:#566d80;color:#f4f7fa;border-radius:0;padding:88px max(32px,calc((100vw - 1180px)/2)) 76px;box-shadow:none;overflow:hidden;position:relative}
-      .vei-explainer::after{content:"";position:absolute;width:540px;height:540px;border-radius:50%;right:-170px;top:-210px;background:rgba(255,255,255,.055);pointer-events:none}
+      .vei-explainer{background:#0b121a;color:#f4f7fa;border-radius:0;padding:88px max(32px,calc((100vw - 1180px)/2)) 76px;box-shadow:none;overflow:hidden;position:relative}
+      .vei-explainer::after{content:"";position:absolute;width:540px;height:540px;border-radius:50%;right:-170px;top:-210px;background:rgba(71,108,140,.12);pointer-events:none}
       .vei-explainer-head{text-align:center;max-width:820px;margin:0 auto 42px;position:relative;z-index:1}
-      .vei-explainer-label{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:999px;background:rgba(10,20,29,.16);color:#e7edf2;font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase}
+      .vei-explainer-label{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:999px;background:rgba(96,137,171,.16);color:#dce8f2;font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase}
       .vei-explainer-label svg{width:14px;height:14px}
       .vei-explainer h2{font:800 clamp(38px,5vw,64px)/1 Manrope,sans-serif;letter-spacing:-3px;margin:18px 0;color:#fff}
-      .vei-explainer-head p{margin:0 auto;color:#d8e0e7;max-width:760px;font-size:15px;line-height:1.75}
-      .vei-explainer-intro{max-width:1000px;margin:0 auto 34px;padding:22px 24px;border-radius:22px;background:rgba(18,32,44,.18);color:#e3e9ee;font-size:14px;line-height:1.7}
+      .vei-explainer-head p{margin:0 auto;color:#aebdcc;max-width:760px;font-size:15px;line-height:1.75}
+      .vei-explainer-intro{max-width:1000px;margin:0 auto 34px;padding:22px 24px;border-radius:22px;background:#111d28;color:#c9d6e1;font-size:14px;line-height:1.7}
       .vei-explainer-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:1040px;margin:0 auto;position:relative;z-index:1}
-      .vei-explainer-card{padding:26px 24px 28px;border-radius:24px;background:rgba(28,43,55,.22);text-align:center}
-      .vei-explainer-icon{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;margin:0 auto 17px;background:rgba(255,255,255,.1);color:#ff8069}
+      .vei-explainer-card{padding:26px 24px 28px;border-radius:24px;background:#101923;text-align:center}
+      .vei-explainer-icon{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;margin:0 auto 17px;background:#182838;color:#ff8069}
       .vei-explainer-icon svg{width:23px;height:23px}
       .vei-explainer-card strong{display:block;font:700 17px Manrope,sans-serif;margin-bottom:10px;color:#fff}
-      .vei-explainer-card p{margin:0;color:#d6dfe6;font-size:13px;line-height:1.65}
+      .vei-explainer-card p{margin:0;color:#aab8c5;font-size:13px;line-height:1.65}
       .marquee{display:none!important}
 
       @media (max-width:900px){
