@@ -33,25 +33,52 @@
   };
 
   const wireDownloads = () => {
-    const selectors = [
+    const downloadSelectors = [
       '[data-i18n="nav.download"]',
       '[data-i18n="hero.download"]',
-      '[data-i18n="download.button"]'
+      '[data-i18n="download.button"]',
+      '[data-i18n^="plans.choose"]'
     ];
 
-    document.querySelectorAll(selectors.join(',')).forEach(link => {
-      if (link.tagName === 'A') {
-        link.href = APK_URL;
-        link.setAttribute('rel', 'noopener');
-      }
+    document.querySelectorAll(downloadSelectors.join(',')).forEach(link => {
+      if (link.tagName !== 'A') return;
+      link.href = APK_URL;
+      link.setAttribute('rel', 'noopener');
+      link.setAttribute('download', 'VeiCloudVPN.apk');
     });
 
-    document.querySelectorAll('[data-i18n^="plans.choose"]').forEach(link => {
-      if (link.tagName === 'A') {
-        link.href = APK_URL;
-        link.setAttribute('rel', 'noopener');
+    document.addEventListener('click', event => {
+      const link = event.target.closest(downloadSelectors.join(','));
+      if (!link) return;
+      event.preventDefault();
+      window.location.assign(APK_URL);
+    }, true);
+  };
+
+  const forceMobileAccountAccess = () => {
+    const accountLink = document.querySelector('.nav-tools a[href="portal.html"]');
+    const languageSwitcher = document.querySelector('.language-switcher');
+    const navDownload = document.querySelector('.nav-tools a[data-i18n="nav.download"]');
+    if (!accountLink) return;
+
+    const apply = () => {
+      if (window.innerWidth <= 600) {
+        if (languageSwitcher) languageSwitcher.style.setProperty('display', 'none', 'important');
+        if (navDownload) navDownload.style.setProperty('display', 'none', 'important');
+        accountLink.style.setProperty('display', 'inline-flex', 'important');
+        accountLink.style.setProperty('visibility', 'visible', 'important');
+        accountLink.style.setProperty('opacity', '1', 'important');
+      } else {
+        accountLink.style.removeProperty('display');
+        accountLink.style.removeProperty('visibility');
+        accountLink.style.removeProperty('opacity');
+        languageSwitcher?.style.removeProperty('display');
+        navDownload?.style.removeProperty('display');
       }
-    });
+    };
+
+    apply();
+    window.addEventListener('resize', apply, { passive: true });
   };
 
   const wireInternalNavigation = () => {
@@ -135,6 +162,7 @@
     removeHeavyDecorations();
     revealContent();
     wireDownloads();
+    forceMobileAccountAccess();
     wireInternalNavigation();
     wireCounters();
     improveExternalActions();
