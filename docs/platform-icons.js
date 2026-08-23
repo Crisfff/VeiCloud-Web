@@ -4,10 +4,7 @@
   const platforms = [
     ['Windows', 'assets/platforms/windows.webp'],
     ['Android', 'assets/platforms/android.webp.png'],
-    ['Android TV', 'assets/platforms/android-tv.webp.png'],
-    ['Chrome', 'assets/platforms/chrome.webp.png'],
-    ['Firefox', 'assets/platforms/firefox.webp.png'],
-    ['Edge', 'assets/platforms/edge.webp.png']
+    ['Android TV', 'assets/platforms/android-tv.webp.png']
   ];
 
   const applyPlatformIcons = () => {
@@ -23,7 +20,7 @@
       </div>
     `).join('');
 
-    grid.style.gridTemplateColumns = 'repeat(6,1fr)';
+    grid.style.gridTemplateColumns = 'repeat(3,1fr)';
 
     if (!document.querySelector('#vei-platform-image-styles')) {
       const style = document.createElement('style');
@@ -31,8 +28,7 @@
       style.textContent = `
         .vei-platform-image{overflow:hidden}
         .vei-platform-image img{width:26px;height:26px;object-fit:contain;display:block}
-        @media(max-width:900px){.vei-platform-grid{grid-template-columns:repeat(3,1fr)!important}}
-        @media(max-width:700px){.vei-platform-grid{grid-template-columns:repeat(2,1fr)!important}}
+        @media(max-width:700px){.vei-platform-grid{grid-template-columns:1fr!important}}
       `;
       document.head.appendChild(style);
     }
