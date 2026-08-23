@@ -45,24 +45,56 @@
     document.head.appendChild(script);
   };
 
-  const loadSiteI18nRuntime = () => {
-    if (document.querySelector('script[data-vei-site-i18n]')) return;
+  const loadDynamicI18n = () => {
+    if (document.querySelector('script[data-vei-dynamic-i18n]')) return;
     const script = document.createElement('script');
-    script.src = 'site-i18n-runtime.js?v=20260823-2';
-    script.dataset.veiSiteI18n = 'true';
+    script.src = 'dynamic-i18n.js?v=20260823-2';
+    script.defer = true;
+    script.dataset.veiDynamicI18n = 'true';
     document.head.appendChild(script);
+  };
+
+  const addPricingLink = () => {
+    const nav = document.querySelector('.nav nav');
+    if (!nav || nav.querySelector('[data-vei-pricing-link]')) return false;
+
+    const link = document.createElement('a');
+    link.href = 'pricing.html';
+    link.dataset.veiPricingLink = '1';
+
+    let lang = 'en';
+    try {
+      lang = localStorage.getItem('veicloud-language-v2') || 'en';
+    } catch (_) {}
+
+    link.textContent = lang === 'es' ? 'Precios' : lang === 'ru' ? 'Цены' : 'Pricing';
+
+    const faq = Array.from(nav.querySelectorAll('a')).find(item => item.getAttribute('href') === '#faq');
+    if (faq) nav.insertBefore(link, faq);
+    else nav.appendChild(link);
+
+    document.querySelectorAll('[data-lang]').forEach(button => {
+      button.addEventListener('click', () => {
+        const selected = button.dataset.lang;
+        link.textContent = selected === 'es' ? 'Precios' : selected === 'ru' ? 'Цены' : 'Pricing';
+      });
+    });
+
+    return true;
   };
 
   document.addEventListener('DOMContentLoaded', () => {
     loadPerformanceCards();
-    loadSiteI18nRuntime();
-    if (applyPlatformIcons()) return;
+    loadDynamicI18n();
+    addPricingLink();
+    applyPlatformIcons();
 
     const observer = new MutationObserver(() => {
-      if (applyPlatformIcons()) observer.disconnect();
+      applyPlatformIcons();
+      addPricingLink();
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
-    setTimeout(() => observer.disconnect(), 5000);
+    setTimeout(() => observer.disconnect(), 7000);
   });
 })();
