@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="payment.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <script src="https://unpkg.com/lucide@latest" defer></script>
   <script src="payment.js" defer></script>
 </head>
 <body>
@@ -47,7 +48,7 @@
 
           <div class="timer-box">
             <span>Payment expires in</span>
-            <strong id="paymentTimer">--:--</strong>
+            <strong id="paymentTimer">20:00</strong>
           </div>
         </aside>
 
@@ -62,7 +63,7 @@
           </header>
 
           <div class="payment-amount-card">
-            <div><span>Amount to send</span><strong id="paymentAmount">0</strong></div>
+            <div><span>Amount to send</span><strong id="paymentAmount">0.00</strong></div>
             <div class="currency-box"><img id="currencyIcon" src="assets/payments/ltc-litecoin.png" alt="Currency"><div><strong id="currencyName">LTC</strong><span id="networkName">Litecoin</span></div></div>
           </div>
 
@@ -79,17 +80,20 @@
 
           <div class="tx-row hidden" id="txRow"><span>Transaction</span><code id="txHash"></code></div>
 
-          <div class="completed-panel hidden" id="completedPanel">
-            <div class="checkmark">✓</div>
-            <div><strong>Payment Completed</strong><span>Your VeiCloud subscription has been activated successfully.</span></div>
-          </div>
-
           <footer class="checkout-footer">
             <span>Never send a different asset or use another network.</span>
             <a href="portal.html">Back to account</a>
           </footer>
         </section>
       </div>
+    </section>
+
+    <section class="payment-success-card hidden" id="paymentSuccess" aria-live="polite">
+      <div class="success-icon"><i data-lucide="badge-check"></i></div>
+      <span class="success-eyebrow">VEICLOUD PAYMENTS</span>
+      <h1>Payment confirmed</h1>
+      <p>Your payment was verified successfully and your VeiCloud subscription is now active.</p>
+      <a class="success-button" href="portal.html">Back to dashboard</a>
     </section>
   </main>
 </body>
