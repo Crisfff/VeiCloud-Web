@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f7">
+  <meta name="description" content="VeiCloud Payments secure cryptocurrency checkout">
+  <title>VeiCloud Payments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="payment.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <script src="payment.js" defer></script>
+</head>
+<body>
+  <main class="payment-page">
+    <section class="checkout-card" id="checkoutCard">
+      <div class="checkout-loading" id="checkoutLoading">
+        <div class="loader"></div>
+        <strong>Loading secure payment…</strong>
+      </div>
+
+      <div class="checkout-error hidden" id="checkoutError">
+        <div class="error-icon">!</div>
+        <h1>Payment unavailable</h1>
+        <p id="checkoutErrorText">This payment link is invalid or unavailable.</p>
+        <a href="portal.html">Return to VeiCloud</a>
+      </div>
+
+      <div class="checkout-content hidden" id="checkoutContent">
+        <aside class="checkout-left">
+          <a class="payments-brand" href="portal.html" aria-label="VeiCloud Payments">
+            <img src="assets/veicloud-logo.png" alt="VeiCloud">
+            <div><strong>VeiCloud</strong><span>Payments</span></div>
+          </a>
+
+          <div class="payment-state" id="paymentState">
+            <span class="state-dot"></span>
+            <div><small>PAYMENT STATUS</small><strong id="statusLabel">Waiting for payment</strong></div>
+          </div>
+
+          <div class="qr-shell">
+            <div id="paymentQr" class="payment-qr"></div>
+          </div>
+          <p class="qr-caption">Scan the QR code with your wallet</p>
+
+          <div class="timer-box">
+            <span>Payment expires in</span>
+            <strong id="paymentTimer">--:--</strong>
+          </div>
+        </aside>
+
+        <section class="checkout-right">
+          <header class="checkout-head">
+            <div>
+              <span class="eyebrow">SECURE CRYPTO CHECKOUT</span>
+              <h1>Complete your payment</h1>
+              <p>Send the exact amount to the wallet address below. VeiCloud will verify the transaction automatically.</p>
+            </div>
+            <div class="plan-chip"><span id="planName">Plan</span><strong id="invoiceId">VC-</strong></div>
+          </header>
+
+          <div class="payment-amount-card">
+            <div><span>Amount to send</span><strong id="paymentAmount">0</strong></div>
+            <div class="currency-box"><img id="currencyIcon" src="assets/payments/ltc-litecoin.png" alt="Currency"><div><strong id="currencyName">LTC</strong><span id="networkName">Litecoin</span></div></div>
+          </div>
+
+          <div class="detail-group">
+            <div class="detail-label"><span>Wallet address</span><span id="addressNetwork">Network</span></div>
+            <div class="copy-field"><code id="walletAddress">Loading…</code><button type="button" id="copyAddress">Copy</button></div>
+          </div>
+
+          <div class="payment-progress">
+            <div class="progress-head"><div><span>Blockchain verification</span><strong id="verificationStatus">Waiting for transaction</strong></div><span class="confirmations" id="confirmations">0 confirmations</span></div>
+            <div class="progress-track"><span id="progressBar"></span></div>
+            <p id="verificationHelp">The page checks your payment automatically every few seconds.</p>
+          </div>
+
+          <div class="tx-row hidden" id="txRow"><span>Transaction</span><code id="txHash"></code></div>
+
+          <div class="completed-panel hidden" id="completedPanel">
+            <div class="checkmark">✓</div>
+            <div><strong>Payment Completed</strong><span>Your VeiCloud subscription has been activated successfully.</span></div>
+          </div>
+
+          <footer class="checkout-footer">
+            <span>Never send a different asset or use another network.</span>
+            <a href="portal.html">Back to account</a>
+          </footer>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
