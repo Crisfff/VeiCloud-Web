@@ -7,10 +7,23 @@
     ['Android TV', 'assets/platforms/android-tv.webp.png']
   ];
 
+  const currentLanguage = () => {
+    try {
+      return localStorage.getItem('veicloud-language-v2') || 'en';
+    } catch (_) {
+      return 'en';
+    }
+  };
+
+  const pricingLabel = (lang) => (
+    lang === 'es' ? 'Precios' : lang === 'ru' ? 'Цены' : 'Pricing'
+  );
+
   const applyPlatformIcons = () => {
     const grid = document.querySelector('.vei-platform-grid');
-    if (!grid) return false;
+    if (!grid || grid.dataset.veiPlatformIconsReady === '1') return false;
 
+    grid.dataset.veiPlatformIconsReady = '1';
     grid.innerHTML = platforms.map(([name, src]) => `
       <div class="vei-platform">
         <div class="vei-platform-icon vei-platform-image">
@@ -56,45 +69,57 @@
 
   const addPricingLink = () => {
     const nav = document.querySelector('.nav nav');
-    if (!nav || nav.querySelector('[data-vei-pricing-link]')) return false;
+    if (!nav) return false;
 
-    const link = document.createElement('a');
-    link.href = 'pricing.html';
-    link.dataset.veiPricingLink = '1';
+    let link = nav.querySelector('[data-vei-pricing-link]');
+    if (!link) {
+      link = document.createElement('a');
+      link.href = 'pricing.html';
+      link.dataset.veiPricingLink = '1';
 
-    let lang = 'en';
-    try {
-      lang = localStorage.getItem('veicloud-language-v2') || 'en';
-    } catch (_) {}
+      const faq = Array.from(nav.querySelectorAll('a')).find(
+        item => item.getAttribute('href') === '#faq'
+      );
 
-    link.textContent = lang === 'es' ? 'Precios' : lang === 'ru' ? 'Цены' : 'Pricing';
+      if (faq) nav.insertBefore(link, faq);
+      else nav.appendChild(link);
+    }
 
-    const faq = Array.from(nav.querySelectorAll('a')).find(item => item.getAttribute('href') === '#faq');
-    if (faq) nav.insertBefore(link, faq);
-    else nav.appendChild(link);
-
-    document.querySelectorAll('[data-lang]').forEach(button => {
-      button.addEventListener('click', () => {
-        const selected = button.dataset.lang;
-        link.textContent = selected === 'es' ? 'Precios' : selected === 'ru' ? 'Цены' : 'Pricing';
-      });
-    });
-
+    link.textContent = pricingLabel(currentLanguage());
     return true;
+  };
+
+  const bindLanguagePricing = () => {
+    document.addEventListener('click', event => {
+      const button = event.target.closest?.('[data-lang]');
+      if (!button) return;
+      const link = document.querySelector('[data-vei-pricing-link]');
+      if (link) link.textContent = pricingLabel(button.dataset.lang);
+    });
   };
 
   document.addEventListener('DOMContentLoaded', () => {
     loadPerformanceCards();
     loadDynamicI18n();
+    bindLanguagePricing();
+
+    if (!applyPlatformIcons()) {
+      const platformObserver = new MutationObserver(() => {
+        if (applyPlatformIcons()) platformObserver.disconnect();
+      });
+      platformObserver.observe(document.body, { childList: true, subtree: true });
+      setTimeout(() => platformObserver.disconnect(), 5000);
+    }
+
     addPricingLink();
-    applyPlatformIcons();
 
-    const observer = new MutationObserver(() => {
-      applyPlatformIcons();
-      addPricingLink();
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-    setTimeout(() => observer.disconnect(), 7000);
+    const nav = document.querySelector('.nav nav');
+    if (nav) {
+      const navObserver = new MutationObserver(() => {
+        addPricingLink();
+      });
+      navObserver.observe(nav, { childList: true });
+      setTimeout(() => navObserver.disconnect(), 5000);
+    }
   });
 })();
