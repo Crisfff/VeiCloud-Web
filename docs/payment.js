@@ -2,6 +2,8 @@
   const API_BASE = "https://api.veicloud.online:8443";
   const POLL_INTERVAL_MS = 4000;
 
+  const checkoutCard = document.getElementById("checkoutCard");
+  const paymentSuccess = document.getElementById("paymentSuccess");
   const loading = document.getElementById("checkoutLoading");
   const content = document.getElementById("checkoutContent");
   const errorBox = document.getElementById("checkoutError");
@@ -24,7 +26,6 @@
   const verificationHelp = document.getElementById("verificationHelp");
   const txRow = document.getElementById("txRow");
   const txHash = document.getElementById("txHash");
-  const completedPanel = document.getElementById("completedPanel");
   const paymentQr = document.getElementById("paymentQr");
 
   const token = new URLSearchParams(location.search).get("token") || "";
@@ -34,11 +35,33 @@
   let lastQrValue = "";
   let finalState = false;
 
+  function refreshIcons() {
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   function showError(message) {
+    paymentSuccess?.classList.add("hidden");
+    checkoutCard?.classList.remove("hidden");
     loading.classList.add("hidden");
     content.classList.add("hidden");
     errorText.textContent = message || "This payment link is invalid or unavailable.";
     errorBox.classList.remove("hidden");
+  }
+
+  function showPaymentSuccess() {
+    finalState = true;
+    checkoutCard?.classList.add("hidden");
+    paymentSuccess?.classList.remove("hidden");
+    refreshIcons();
+
+    if (pollHandle) {
+      clearInterval(pollHandle);
+      pollHandle = null;
+    }
+    if (timerHandle) {
+      clearInterval(timerHandle);
+      timerHandle = null;
+    }
   }
 
   function planLabel(value) {
@@ -68,8 +91,6 @@
     const number = Number(raw);
     if (!Number.isFinite(number)) return "0.00";
 
-    // Keep the exact useful precision, but remove the long tail of zeroes.
-    // Minimum two decimals keeps the checkout visually clean.
     const decimalsInSource = raw.includes(".") ? raw.split(".")[1].length : 0;
     const maxDecimals = Math.min(Math.max(decimalsInSource, 2), 8);
     let formatted = number.toFixed(maxDecimals);
@@ -112,13 +133,7 @@
     paymentState.classList.remove("detected", "paid", "expired");
 
     if (normalized === "PAID") {
-      paymentState.classList.add("paid");
-      statusLabel.textContent = "Payment Completed";
-      verificationStatus.textContent = "Payment confirmed";
-      verificationHelp.textContent = "Your payment was verified on-chain and your subscription is active.";
-      progressBar.style.width = "100%";
-      completedPanel.classList.remove("hidden");
-      finalState = true;
+      showPaymentSuccess();
       return;
     }
 
@@ -152,6 +167,11 @@
     const currency = String(crypto.currency || "").toUpperCase();
     const network = networkLabel(currency, crypto.network);
 
+    if (String(data?.status || "").toUpperCase() === "PAID") {
+      showPaymentSuccess();
+      return;
+    }
+
     planName.textContent = planLabel(data?.plan);
     invoiceId.textContent = data?.invoice_id || "VC-";
     paymentAmount.textContent = `${formatCryptoAmount(crypto.amount)} ${currency}`;
@@ -173,8 +193,6 @@
       txRow.classList.add("hidden");
     }
 
-    // The API already calculates the remaining time in UTC. Using it directly
-    // avoids browser timezone interpretation issues with naive timestamps.
     const secondsRemaining = Number(data?.seconds_remaining);
     if (Number.isFinite(secondsRemaining) && secondsRemaining >= 0) {
       expiresAtMs = Date.now() + (secondsRemaining * 1000);
@@ -182,6 +200,8 @@
 
     renderQr(makeQrValue(data));
 
+    paymentSuccess?.classList.add("hidden");
+    checkoutCard?.classList.remove("hidden");
     loading.classList.add("hidden");
     errorBox.classList.add("hidden");
     content.classList.remove("hidden");
@@ -214,12 +234,10 @@
       const data = await fetchInvoice();
       if (!data) return;
       renderInvoice(data);
-      if (finalState && pollHandle) {
-        clearInterval(pollHandle);
-        pollHandle = null;
-      }
     } catch (error) {
-      if (content.classList.contains("hidden")) showError(error.message);
+      if (content.classList.contains("hidden") && paymentSuccess?.classList.contains("hidden")) {
+        showError(error.message);
+      }
     }
   }
 
@@ -251,6 +269,8 @@
   });
 
   async function boot() {
+    refreshIcons();
+
     if (!token) {
       showError("Missing payment token.");
       return;
@@ -258,11 +278,15 @@
 
     paymentTimer.textContent = "20:00";
     await refreshInvoice();
-    updateTimer();
-    timerHandle = setInterval(updateTimer, 1000);
-    if (!finalState) pollHandle = setInterval(refreshInvoice, POLL_INTERVAL_MS);
+
+    if (!finalState) {
+      updateTimer();
+      timerHandle = setInterval(updateTimer, 1000);
+      pollHandle = setInterval(refreshInvoice, POLL_INTERVAL_MS);
+    }
   }
 
+  window.addEventListener("load", refreshIcons);
   window.addEventListener("beforeunload", () => {
     if (timerHandle) clearInterval(timerHandle);
     if (pollHandle) clearInterval(pollHandle);
