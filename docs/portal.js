@@ -393,47 +393,87 @@ async function loadDashboard() {
   refreshButton?.querySelector("svg")?.classList.add("spin");
 
   try {
-    const [user, devices] = await Promise.all([
-      api("/api/user/me"),
-      api("/api/vpn/devices")
-    ]);
+    const user = await api("/api/user/me");
 
-    const plan = normalizePlan(devices?.plan || user?.plan);
-    const maxDevices = Number(devices?.max_devices ?? user?.max_devices ?? 1);
-    const used = Number(devices?.devices_used ?? devices?.devices?.length ?? 0);
-    const available = Number(devices?.devices_available ?? Math.max(maxDevices - used, 0));
+    let devices = null;
+    try {
+      devices = await api("/api/vpn/devices");
+    } catch (error) {
+      if (error.message === "SESSION_EXPIRED") throw error;
+      devices = null;
+    }
+
     const publicId = formatPublicId(user?.public_id, user?.id);
     const email = user?.email || "Cuenta VeiCloud";
     const premiumUntil = devices?.premium_until || user?.premium_until || null;
-    const active = user?.is_active !== false;
+    const premiumFlag = Boolean(devices?.is_premium ?? user?.is_premium);
+    const premiumUntilDate = premiumUntil ? new Date(premiumUntil) : null;
+    const subscriptionActive = premiumFlag && (
+      !premiumUntilDate
+      || Number.isNaN(premiumUntilDate.getTime())
+      || premiumUntilDate.getTime() > Date.now()
+    );
+
+    const plan = subscriptionActive
+      ? normalizePlan(devices?.plan || user?.plan)
+      : "Plan inactivo";
+
+    const maxDevices = subscriptionActive
+      ? Number(devices?.max_devices ?? user?.max_devices ?? 1)
+      : 0;
+
+    const used = subscriptionActive
+      ? Number(devices?.devices_used ?? devices?.devices?.length ?? 0)
+      : 0;
+
+    const available = subscriptionActive
+      ? Number(devices?.devices_available ?? Math.max(maxDevices - used, 0))
+      : 0;
 
     document.getElementById("welcomeName").textContent = email.split("@")[0] || "VeiCloud";
     document.getElementById("chipEmail").textContent = email;
     document.getElementById("chipId").textContent = `ID · ${publicId}`;
     document.getElementById("planName").textContent = plan;
-    document.getElementById("planStatus").textContent = `${maxDevices} dispositivo${maxDevices === 1 ? "" : "s"} incluido${maxDevices === 1 ? "" : "s"} en tu plan`;
-    document.getElementById("devicesFraction").textContent = `${used}/${maxDevices}`;
+    document.getElementById("planStatus").textContent = subscriptionActive
+      ? `${maxDevices} dispositivo${maxDevices === 1 ? "" : "s"} incluido${maxDevices === 1 ? "" : "s"} en tu plan`
+      : `ID · ${publicId} · ${email}`;
+    document.getElementById("devicesFraction").textContent = subscriptionActive
+      ? `${used}/${maxDevices}`
+      : "0/0";
     document.getElementById("publicId").textContent = publicId;
     document.getElementById("devicesAvailable").textContent = String(available);
-    document.getElementById("subscriptionStatus").textContent = active ? "Activa" : "Inactiva";
-    document.getElementById("subscriptionUntil").textContent = premiumUntil
+    document.getElementById("subscriptionStatus").textContent = subscriptionActive ? "Activa" : "Inactiva";
+    document.getElementById("subscriptionUntil").textContent = subscriptionActive && premiumUntil
       ? `Válida hasta ${formatDate(premiumUntil)}`
-      : "Cuenta VeiCloud activa";
+      : "Sin suscripción activa";
 
     const degrees = maxDevices > 0 ? Math.min(used / maxDevices, 1) * 360 : 0;
     document.getElementById("capacityRing").style.setProperty("--usage", `${degrees}deg`);
 
     if (addAccessButton) {
-      addAccessButton.disabled = available <= 0;
-      addAccessButton.title = available <= 0
-        ? "No quedan espacios disponibles en tu plan"
-        : "Añadir un nuevo acceso";
+      addAccessButton.disabled = !subscriptionActive || available <= 0;
+      addAccessButton.title = !subscriptionActive
+        ? "Activa un plan para añadir dispositivos"
+        : available <= 0
+          ? "No quedan espacios disponibles en tu plan"
+          : "Añadir un nuevo acceso";
     }
 
-    renderDevices(devices);
+    if (!subscriptionActive) {
+      devicesList.innerHTML = '<div class="empty-card"><i data-lucide="shield-off"></i>Activa un plan para empezar a conectar dispositivos.</div>';
+      refreshIcons();
+      return;
+    }
+
+    if (devices) {
+      renderDevices(devices);
+    } else {
+      devicesList.innerHTML = '<div class="empty-card"><i data-lucide="triangle-alert"></i>No se pudieron cargar los dispositivos.</div>';
+      refreshIcons();
+    }
   } catch (error) {
     if (error.message === "SESSION_EXPIRED") return;
-    dashboardError.textContent = "No se pudieron cargar todos los datos de tu cuenta. Comprueba la conexión e inténtalo de nuevo.";
+    dashboardError.textContent = "No se pudieron cargar los datos de tu cuenta. Comprueba la conexión e inténtalo de nuevo.";
     dashboardError.classList.remove("hidden");
     devicesList.innerHTML = '<div class="empty-card"><i data-lucide="triangle-alert"></i>No se pudieron cargar los dispositivos.</div>';
     refreshIcons();
