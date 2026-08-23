@@ -45,8 +45,18 @@
     document.head.appendChild(script);
   };
 
+  const loadDynamicI18n = () => {
+    if (document.querySelector('script[data-vei-dynamic-i18n]')) return;
+    const script = document.createElement('script');
+    script.src = 'dynamic-i18n.js?v=20260823-1';
+    script.defer = true;
+    script.dataset.veiDynamicI18n = 'true';
+    document.head.appendChild(script);
+  };
+
   document.addEventListener('DOMContentLoaded', () => {
     loadPerformanceCards();
+    loadDynamicI18n();
     if (applyPlatformIcons()) return;
 
     const observer = new MutationObserver(() => {
