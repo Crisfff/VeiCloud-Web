@@ -15,7 +15,7 @@
     }
   };
 
-  const pricingLabel = (lang) => (
+  const pricingLabel = lang => (
     lang === 'es' ? 'Precios' : lang === 'ru' ? 'Цены' : 'Pricing'
   );
 
@@ -58,12 +58,12 @@
     document.head.appendChild(script);
   };
 
-  const loadDynamicI18n = () => {
-    if (document.querySelector('script[data-vei-dynamic-i18n]')) return;
+  const loadLanguageRuntime = () => {
+    if (document.querySelector('script[data-vei-language-runtime]')) return;
     const script = document.createElement('script');
-    script.src = 'dynamic-i18n.js?v=20260823-2';
+    script.src = 'language-runtime-v2.js?v=20260823-1';
     script.defer = true;
-    script.dataset.veiDynamicI18n = 'true';
+    script.dataset.veiLanguageRuntime = 'true';
     document.head.appendChild(script);
   };
 
@@ -100,7 +100,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     loadPerformanceCards();
-    loadDynamicI18n();
+    loadLanguageRuntime();
     bindLanguagePricing();
 
     if (!applyPlatformIcons()) {
@@ -115,9 +115,7 @@
 
     const nav = document.querySelector('.nav nav');
     if (nav) {
-      const navObserver = new MutationObserver(() => {
-        addPricingLink();
-      });
+      const navObserver = new MutationObserver(() => addPricingLink());
       navObserver.observe(nav, { childList: true });
       setTimeout(() => navObserver.disconnect(), 5000);
     }
