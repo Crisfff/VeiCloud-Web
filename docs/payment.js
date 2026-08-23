@@ -28,7 +28,7 @@
   const paymentQr = document.getElementById("paymentQr");
 
   const token = new URLSearchParams(location.search).get("token") || "";
-  let expiresAt = null;
+  let expiresAtMs = null;
   let timerHandle = null;
   let pollHandle = null;
   let lastQrValue = "";
@@ -61,6 +61,26 @@
     return String(currency || "").toUpperCase() === "USDT"
       ? "assets/payments/usdt-bep20.png"
       : "assets/payments/ltc-litecoin.png";
+  }
+
+  function formatCryptoAmount(rawValue) {
+    const raw = String(rawValue ?? "0").trim();
+    const number = Number(raw);
+    if (!Number.isFinite(number)) return "0.00";
+
+    // Keep the exact useful precision, but remove the long tail of zeroes.
+    // Minimum two decimals keeps the checkout visually clean.
+    const decimalsInSource = raw.includes(".") ? raw.split(".")[1].length : 0;
+    const maxDecimals = Math.min(Math.max(decimalsInSource, 2), 8);
+    let formatted = number.toFixed(maxDecimals);
+
+    if (formatted.includes(".")) {
+      const [whole, fraction] = formatted.split(".");
+      const trimmed = fraction.replace(/0+$/, "");
+      formatted = `${whole}.${trimmed.padEnd(2, "0")}`;
+    }
+
+    return formatted;
   }
 
   function makeQrValue(data) {
@@ -134,7 +154,7 @@
 
     planName.textContent = planLabel(data?.plan);
     invoiceId.textContent = data?.invoice_id || "VC-";
-    paymentAmount.textContent = `${crypto.amount || "0"} ${currency}`;
+    paymentAmount.textContent = `${formatCryptoAmount(crypto.amount)} ${currency}`;
     currencyName.textContent = currency || "Crypto";
     networkName.textContent = network;
     addressNetwork.textContent = network;
@@ -153,7 +173,13 @@
       txRow.classList.add("hidden");
     }
 
-    if (data?.expires_at) expiresAt = new Date(data.expires_at);
+    // The API already calculates the remaining time in UTC. Using it directly
+    // avoids browser timezone interpretation issues with naive timestamps.
+    const secondsRemaining = Number(data?.seconds_remaining);
+    if (Number.isFinite(secondsRemaining) && secondsRemaining >= 0) {
+      expiresAtMs = Date.now() + (secondsRemaining * 1000);
+    }
+
     renderQr(makeQrValue(data));
 
     loading.classList.add("hidden");
@@ -198,14 +224,16 @@
   }
 
   function updateTimer() {
-    if (!(expiresAt instanceof Date) || Number.isNaN(expiresAt.getTime())) {
-      paymentTimer.textContent = "--:--";
+    if (!Number.isFinite(expiresAtMs)) {
+      paymentTimer.textContent = "20:00";
       return;
     }
-    const remaining = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
+
+    const remaining = Math.max(0, Math.floor((expiresAtMs - Date.now()) / 1000));
     const minutes = Math.floor(remaining / 60);
     const seconds = remaining % 60;
     paymentTimer.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+
     if (remaining <= 0 && !finalState) refreshInvoice();
   }
 
@@ -228,6 +256,7 @@
       return;
     }
 
+    paymentTimer.textContent = "20:00";
     await refreshInvoice();
     updateTimer();
     timerHandle = setInterval(updateTimer, 1000);
