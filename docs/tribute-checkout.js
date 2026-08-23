@@ -1,6 +1,11 @@
 const TRIBUTE_API_BASE = "https://api.veicloud.online:8443";
 const TRIBUTE_TOKEN_KEY = "veicloud_web_token";
 const TRIBUTE_VALID_PLANS = new Set(["standard", "gold", "premium"]);
+const TRIBUTE_TELEGRAM_CHECKOUT_URLS = {
+  standard: "https://t.me/tribute/app?startapp=pCFv",
+  gold: "https://t.me/tribute/app?startapp=pCFw",
+  premium: "https://t.me/tribute/app?startapp=pCFx"
+};
 
 function normalizeTributePlan(value) {
   const plan = String(value || "").trim().toLowerCase();
@@ -83,7 +88,7 @@ function ensureTelegramLinkModal() {
         <div><span class="telegram-link-kicker">TELEGRAM</span><h2 id="telegramLinkTitle">Vincular Telegram</h2></div>
         <button class="telegram-link-close" type="button" data-close-telegram-link aria-label="Cerrar">×</button>
       </header>
-      <p class="telegram-link-intro">Vincula la misma cuenta de Telegram que utilizarás para pagar en Tribute. Así VeiCloud sabrá exactamente qué cuenta debe activar.</p>
+      <p class="telegram-link-intro">Vincula tu cuenta de Telegram. El pago se abrirá después dentro de Telegram para que VeiCloud pueda identificar automáticamente tu compra.</p>
       <ol class="telegram-link-steps">
         <li>Abre el bot de VeiCloud en Telegram y solicita vincular tu cuenta.</li>
         <li>El bot te dará un código temporal de vinculación.</li>
@@ -160,7 +165,7 @@ function showTelegramLinkAction(planValue) {
 
   const copy = document.createElement("div");
   copy.className = "telegram-link-alert-copy";
-  copy.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path><path d="m8 10 2.5 2.5L16 7"></path></svg><span>Antes de pagar, vincula tu Telegram a tu cuenta VeiCloud. Usa en Tribute esa misma cuenta de Telegram.</span>`;
+  copy.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path><path d="m8 10 2.5 2.5L16 7"></path></svg><span>Antes de pagar, vincula Telegram. El checkout se abrirá dentro de Telegram y no por correo.</span>`;
 
   const button = document.createElement("button");
   button.type = "button";
@@ -303,8 +308,8 @@ async function openTributeCheckout(planValue) {
 
     clearTributeDashboardMessage();
 
-    const checkoutUrl = String(payload?.checkout_url || "").trim();
-    if (!checkoutUrl.startsWith("https://web.tribute.tg/")) {
+    const checkoutUrl = TRIBUTE_TELEGRAM_CHECKOUT_URLS[plan];
+    if (!checkoutUrl) {
       showTributeMessage("El enlace de pago no está disponible en este momento.");
       return;
     }
