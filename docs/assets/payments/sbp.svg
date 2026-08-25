@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">СБП</title>
+  <g transform="translate(14 10)">
+    <path d="M18 8 L58 30 L42 39 L18 26 Z" fill="#F6A623"/>
+    <path d="M18 26 L42 39 L58 48 L18 70 Z" fill="#E91E63"/>
+    <path d="M18 70 L58 92 L42 101 L18 88 Z" fill="#159447"/>
+    <path d="M18 44 L66 70 L52 79 L4 53 Z" fill="#2E97D1"/>
+    <path d="M18 8 L18 26 L4 18 Z" fill="#FF7A2F"/>
+    <path d="M18 88 L18 70 L4 79 Z" fill="#7C4D9E"/>
+  </g>
+</svg>
