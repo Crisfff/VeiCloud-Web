@@ -156,7 +156,7 @@
           <div class="payment-stage">
             <span class="payment-method-label">Método de pago</span>
             <div class="payment-method-list">
-              <button class="payment-method-option" id="sbpPaymentsOption" type="button"><span class="payment-method-icon"><img src="assets/payments/sbp.svg?v=20260825-1" alt="СБП"></span><span class="payment-method-copy"><strong>СБП</strong><small>Оплата через Систему быстрых платежей</small></span><span class="payment-method-arrow">›</span></button>
+              <button class="payment-method-option" id="sbpPaymentsOption" type="button"><span class="payment-method-icon"><img src="https://sbp.nspk.ru/images/stub/logo.svg" alt="СБП"></span><span class="payment-method-copy"><strong>СБП</strong><small>Оплата через Систему быстрых платежей</small></span><span class="payment-method-arrow">›</span></button>
               <button class="payment-method-option" id="cryptoPaymentsOption" type="button"><span class="payment-method-icon"><img src="assets/payments/crypto-payments.svg" alt="Crypto Payments"></span><span class="payment-method-copy"><strong>Crypto Payments</strong><small>Paga de forma segura con LTC o USDT</small></span><span class="payment-method-arrow">›</span></button>
             </div>
             <p class="payment-method-note">Selecciona el método de pago que prefieras.</p>
