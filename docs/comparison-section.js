@@ -137,3 +137,66 @@
     setTimeout(() => observer.disconnect(), 5000);
   });
 })();
+
+(() => {
+  'use strict';
+
+  const labels = {
+    es: 'Descargar',
+    ru: 'Скачать',
+    en: 'Download'
+  };
+
+  let repairing = false;
+
+  const currentLanguage = () => {
+    const lang = (document.documentElement.lang || '').toLowerCase();
+    if (lang.startsWith('es')) return 'es';
+    if (lang.startsWith('ru')) return 'ru';
+    return 'en';
+  };
+
+  const repairDownloadToggle = () => {
+    if (repairing) return;
+    const download = document.querySelector('.nav-download');
+    if (!download) return;
+
+    repairing = true;
+    try {
+      download.removeAttribute('data-i18n');
+      const label = labels[currentLanguage()] || labels.en;
+      const hasToggleUi = download.classList.contains('vei-download-toggle') || document.querySelector('.vei-download-wrap');
+
+      if (hasToggleUi) {
+        let chevron = download.querySelector('.vei-download-chevron');
+        if (!chevron) {
+          chevron = document.createElement('span');
+          chevron.className = 'vei-download-chevron';
+          chevron.setAttribute('aria-hidden', 'true');
+          chevron.innerHTML = '<svg viewBox="0 0 20 20"><path d="M5.5 7.5 10 12l4.5-4.5"/></svg>';
+        }
+
+        download.replaceChildren(document.createTextNode(label + ' '), chevron);
+      } else if (download.textContent.trim() !== label) {
+        download.textContent = label;
+      }
+    } finally {
+      repairing = false;
+    }
+  };
+
+  const bootRepair = () => {
+    repairDownloadToggle();
+    const observer = new MutationObserver(() => queueMicrotask(repairDownloadToggle));
+    observer.observe(document.documentElement, {childList:true, subtree:true, characterData:true});
+    window.addEventListener('veicloud:languagechange', repairDownloadToggle);
+    setTimeout(repairDownloadToggle, 250);
+    setTimeout(repairDownloadToggle, 1000);
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootRepair, {once:true});
+  } else {
+    bootRepair();
+  }
+})();
