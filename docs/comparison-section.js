@@ -169,14 +169,22 @@
 
       if (hasToggleUi) {
         let chevron = download.querySelector('.vei-download-chevron');
-        if (!chevron) {
-          chevron = document.createElement('span');
-          chevron.className = 'vei-download-chevron';
-          chevron.setAttribute('aria-hidden', 'true');
-          chevron.innerHTML = '<svg viewBox="0 0 20 20"><path d="M5.5 7.5 10 12l4.5-4.5"/></svg>';
-        }
+        const directText = Array.from(download.childNodes)
+          .filter(node => node.nodeType === Node.TEXT_NODE)
+          .map(node => node.textContent)
+          .join('')
+          .trim();
+        const cleanStructure = chevron && directText === label && download.childNodes.length === 2;
 
-        download.replaceChildren(document.createTextNode(label + ' '), chevron);
+        if (!cleanStructure) {
+          if (!chevron) {
+            chevron = document.createElement('span');
+            chevron.className = 'vei-download-chevron';
+            chevron.setAttribute('aria-hidden', 'true');
+            chevron.innerHTML = '<svg viewBox="0 0 20 20"><path d="M5.5 7.5 10 12l4.5-4.5"/></svg>';
+          }
+          download.replaceChildren(document.createTextNode(label + ' '), chevron);
+        }
       } else if (download.textContent.trim() !== label) {
         download.textContent = label;
       }
